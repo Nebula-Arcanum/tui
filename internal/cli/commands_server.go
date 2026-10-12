@@ -62,7 +62,7 @@ func cmdServer(ctx context.Context, action string, args Args) error {
 		if args.Bool("json") {
 			emitJSON(status)
 		} else {
-			emitLine(fmt.Sprintf("%s %s — %s\nActive: %t  Healthy: %t\nVault: %s", name, status.Version, status.URL, status.Active, status.Healthy, status.Vault))
+			emitLine(fmt.Sprintf("%s %s at %s\nActive: %t  Healthy: %t\nVault: %s", name, status.Version, status.URL, status.Active, status.Healthy, status.Vault))
 			if status.Error != "" {
 				emitLine(status.Error)
 			}
@@ -122,7 +122,7 @@ func cmdServer(ctx context.Context, action string, args Args) error {
 	if args.Bool("json") {
 		emitJSON(i)
 	} else {
-		emitOK(fmt.Sprintf("%s: %s complete — version %s, %s", i.Name, action, i.Version, i.URL()))
+		emitOK(fmt.Sprintf("%s: %s complete (version %s, %s)", i.Name, action, i.Version, i.URL()))
 	}
 	return nil
 }

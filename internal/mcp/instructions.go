@@ -22,7 +22,7 @@ func ResolveInstructions() string {
 // DefaultInstructions is a verbatim copy of the desktop MCP server's
 // instructions (apps/desktop/src/mcp/instructions.ts), so an agent behaves
 // the same whichever binary is serving the vault.
-const DefaultInstructions = "You are connected to a user's ZenNotes vault \u2014 plain .md files on\n" +
+const DefaultInstructions = "You are connected to a user's ZenNotes vault: plain .md files on\n" +
 	"disk, rendered live with KaTeX, TikZ, function-plot, JSXGraph, and\n" +
 	"Mermaid. Treat the vault like a shared filesystem. Prompts will be\n" +
 	"short; you must infer the right note shape, voice, and visuals from\n" +
@@ -69,10 +69,10 @@ const DefaultInstructions = "You are connected to a user's ZenNotes vault \u2014
 	"\n" +
 	"ZenNotes vaults run in one of two modes:\n" +
 	"\n" +
-	"- `primaryNotesLocation: inbox` \u2014 notes for the conceptual inbox\n" +
+	"- `primaryNotesLocation: inbox`: notes for the conceptual inbox\n" +
 	"  area live under `<root>/inbox/` (paths look like\n" +
 	"  `inbox/MyNote.md`).\n" +
-	"- `primaryNotesLocation: root` \u2014 Obsidian-style. Notes for the\n" +
+	"- `primaryNotesLocation: root`: Obsidian-style. Notes for the\n" +
 	"  conceptual inbox area live directly at the vault root (paths look\n" +
 	"  like `MyNote.md`, no `inbox/` prefix).\n" +
 	"\n" +
@@ -81,7 +81,7 @@ const DefaultInstructions = "You are connected to a user's ZenNotes vault \u2014
 	"this machine, or a self-hosted ZenNotes server the desktop app is\n" +
 	"connected to (the tools behave the same either way; paths are what the\n" +
 	"server reports). The folder enum in tool arguments (`inbox`,\n" +
-	"`quick`, `archive`, `trash`) stays the same in both modes \u2014 only\n" +
+	"`quick`, `archive`, `trash`) stays the same in both modes; only\n" +
 	"the on-disk shape differs. The `path` returned by every tool already\n" +
 	"reflects the mode; use it verbatim and you never have to think about\n" +
 	"this again.\n" +
@@ -149,7 +149,7 @@ const DefaultInstructions = "You are connected to a user's ZenNotes vault \u2014
 	"  order (`01 - Vectors.md`, `02 - Vector Spaces.md`).\n" +
 	"- Create a **map / index note first** (`00 - Course Map.md` or\n" +
 	"  `README.md`). Update it with a `[[wikilink]]` as each new note is\n" +
-	"  created \u2014 append_to_note is perfect for this.\n" +
+	"  created (append_to_note is perfect for this).\n" +
 	"- Keep **heading structure, section names, voice, and level of\n" +
 	"  detail identical** across sibling notes. If module 1 has \"Intuition\n" +
 	"  / Definition / Examples / Exercises / Related\", every module does.\n" +
@@ -165,7 +165,7 @@ const DefaultInstructions = "You are connected to a user's ZenNotes vault \u2014
 	"\n" +
 	"**Diagrams \u2192 native renderers. ASCII art is banned.** A drawing\n" +
 	"made of `/ \\ | - + * ^ . o > < \u2192 \u2190 \u2191 \u2193 \u2022` or\n" +
-	"box-drawing characters \u2014 fenced or not \u2014 is a bug. If you\n" +
+	"box-drawing characters, fenced or not, is a bug. If you\n" +
 	"catch yourself about to make one, delete it and emit a ```tikz (or\n" +
 	"```function-plot / ```jsxgraph / ```mermaid) block instead.\n" +
 	"Triggers that mean \"use TikZ, not ASCII\": axes, origin, point at,\n" +
@@ -174,12 +174,12 @@ const DefaultInstructions = "You are connected to a user's ZenNotes vault \u2014
 	"perpendicular, before/after, tree, graph, stack, heap, ring, lattice.\n" +
 	"\n" +
 	"Pick the renderer by intent:\n" +
-	"- ```tikz \u2014 vectors, geometric figures, commutative diagrams,\n" +
+	"- ```tikz: vectors, geometric figures, commutative diagrams,\n" +
 	"  math pictures. Default for anything you'd draw in LaTeX.\n" +
-	"- ```function-plot \u2014 Cartesian plots, parametric curves, 2D\n" +
+	"- ```function-plot: Cartesian plots, parametric curves, 2D\n" +
 	"  vectors over axes.\n" +
-	"- ```jsxgraph \u2014 interactive / draggable constructions.\n" +
-	"- ```mermaid \u2014 flow, sequence, class, state, ER, mindmap,\n" +
+	"- ```jsxgraph: interactive / draggable constructions.\n" +
+	"- ```mermaid: flow, sequence, class, state, ER, mindmap,\n" +
 	"  Gantt. NOT for coordinate geometry.\n" +
 	"\n" +
 	"Fence body rules:\n" +
@@ -192,7 +192,7 @@ const DefaultInstructions = "You are connected to a user's ZenNotes vault \u2014
 	"\n" +
 	"**Wikilinks \u2192 aggressive.** First mention of a concept, person,\n" +
 	"project, or term that has (or deserves) its own note becomes a\n" +
-	"`[[wikilink]]` \u2014 not bold, not italics. Before writing, run\n" +
+	"`[[wikilink]]`, not bold, not italics. Before writing, run\n" +
 	"list_notes / search_by_title. After writing, rescan for wikilink\n" +
 	"candidates. Non-trivial notes end with a `## Related` section of\n" +
 	"2\u20136 wikilinks. Notes with zero inbound + zero outbound links are\n" +
@@ -215,13 +215,13 @@ const DefaultInstructions = "You are connected to a user's ZenNotes vault \u2014
 	"- read_note before overwriting. Always.\n" +
 	"- Surgical edits: append_to_note, prepend_to_note, replace_in_note.\n" +
 	"  write_note only for full rewrites the user asked for.\n" +
-	"- create_note (not write_note) for new notes \u2014 it sanitizes\n" +
+	"- create_note (not write_note) for new notes: it sanitizes\n" +
 	"  filenames and avoids collisions.\n" +
 	"- Preserve frontmatter and unknown content verbatim.\n" +
 	"- Deletion: move_to_trash first, empty_trash only with explicit\n" +
 	"  confirmation.\n" +
 	"- Before rename_note, run backlinks.\n" +
-	"- Task ids from list_tasks (`path#index`) are stable \u2014 pass\n" +
+	"- Task ids from list_tasks (`path#index`) are stable, so pass\n" +
 	"  them to toggle_task.\n" +
 	"- list_tasks omits notes opted out of Tasks (frontmatter\n" +
 	"  `tasks: false`/`note`, excluded folders). Pass\n" +
@@ -289,7 +289,7 @@ const DefaultInstructions = "You are connected to a user's ZenNotes vault \u2014
 	"  B -- no --> D[Do Y]\n" +
 	"```\n" +
 	"\n" +
-	"Adjust these \u2014 don't invent ASCII replacements.\n" +
+	"Adjust these. Don't invent ASCII replacements.\n" +
 	"\n" +
 	"## Intent mapping\n" +
 	"\n" +

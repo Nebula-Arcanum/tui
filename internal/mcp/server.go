@@ -215,7 +215,7 @@ func tools() []toolDef {
 		},
 		{
 			name:        "list_notes",
-			description: "List notes in the vault with metadata (title, folder, tags, wikilinks, excerpt, timestamps). Optional filters narrow by folder, tag, or wikilink target. Use this before editing to pick the right note. Trashed notes are included only when folder='trash' is explicit. The returned `path` field is the canonical reference — pass it back verbatim to read_note / write_note / move_note. In `primaryNotesLocation: root` vaults, inbox notes have a path WITHOUT an `inbox/` prefix (e.g. `MyNote.md`); never add one. Each note also carries `link`, a clickable zennotes:// URL that opens it in the app; use it verbatim when rendering note titles as markdown links for the user.",
+			description: "List notes in the vault with metadata (title, folder, tags, wikilinks, excerpt, timestamps). Optional filters narrow by folder, tag, or wikilink target. Use this before editing to pick the right note. Trashed notes are included only when folder='trash' is explicit. The returned `path` field is the canonical reference: pass it back verbatim to read_note / write_note / move_note. In `primaryNotesLocation: root` vaults, inbox notes have a path WITHOUT an `inbox/` prefix (e.g. `MyNote.md`); never add one. Each note also carries `link`, a clickable zennotes:// URL that opens it in the app; use it verbatim when rendering note titles as markdown links for the user.",
 			schema: `{"type":"object","properties":{
 "folder":{"type":"string","enum":["inbox","quick","archive","trash"],"description":"Only return notes in this top-level folder."},
 "subpath":{"type":"string","description":"POSIX subpath under the folder (e.g. \"Work/Meetings\"). Requires folder to be set."},
@@ -311,7 +311,7 @@ func tools() []toolDef {
 		},
 		{
 			name:        "read_note",
-			description: "Read the full body and metadata of a single note. Always read before you write. Use the path verbatim from list_notes / search_* / create_note — never invent or prefix it.",
+			description: "Read the full body and metadata of a single note. Always read before you write. Use the path verbatim from list_notes / search_* / create_note. Never invent or prefix it.",
 			schema:      `{"type":"object","properties":{"path":{"type":"string","description":"Vault-relative POSIX path exactly as another tool returned it. In ` + "`primaryNotesLocation: root`" + ` vaults this looks like \"MyNote.md\"; in ` + "`inbox`" + ` mode it looks like \"inbox/MyNote.md\". Pass it through unchanged."}},"required":["path"]}`,
 			handler: func(ctx context.Context, a args, b Backend) (any, error) {
 				rel, err := a.requireString("path")
@@ -323,7 +323,7 @@ func tools() []toolDef {
 		},
 		{
 			name:        "write_note",
-			description: "Overwrite the full body of an existing note. Destructive — prefer append_to_note / replace_in_note for incremental edits. Keep frontmatter intact unless the user asked you to change it.",
+			description: "Overwrite the full body of an existing note. Destructive, so prefer append_to_note / replace_in_note for incremental edits. Keep frontmatter intact unless the user asked you to change it.",
 			schema:      `{"type":"object","properties":{"path":{"type":"string","description":"Vault-relative POSIX path."},"body":{"type":"string","description":"New full markdown body."}},"required":["path","body"]}`,
 			handler: func(ctx context.Context, a args, b Backend) (any, error) {
 				rel, err := a.requireString("path")
@@ -339,7 +339,7 @@ func tools() []toolDef {
 		},
 		{
 			name:        "create_note",
-			description: "Create a new note. Always picks a non-conflicting filename by appending a counter if needed. Use the `path` from the response to refer to the note in any follow-up tool calls — DO NOT reconstruct it from `folder + title`. In root-mode vaults, `folder: \"inbox\"` means the note lands directly at the vault root with a path like \"MyNote.md\" (no inbox/ prefix).",
+			description: "Create a new note. Always picks a non-conflicting filename by appending a counter if needed. Use the `path` from the response to refer to the note in any follow-up tool calls. DO NOT reconstruct it from `folder + title`. In root-mode vaults, `folder: \"inbox\"` means the note lands directly at the vault root with a path like \"MyNote.md\" (no inbox/ prefix).",
 			schema: `{"type":"object","properties":{
 "folder":{"type":"string","enum":["inbox","quick","archive"],"description":"Conceptual folder. Refuses \"trash\". In ` + "`primaryNotesLocation: inbox`" + ` vaults, \"inbox\" maps to <root>/inbox/; in ` + "`primaryNotesLocation: root`" + ` vaults, \"inbox\" maps to the vault root itself. quick/ and archive/ are always real subdirectories. Default if omitted: \"inbox\"."},
 "title":{"type":"string","description":"Human-readable title. Becomes the filename (sanitized). Optional; defaults to \"Untitled\"."},
@@ -423,7 +423,7 @@ func tools() []toolDef {
 		}),
 		{
 			name:        "empty_trash",
-			description: "Permanently delete every note in trash/. Confirm with the user before calling — this is irreversible.",
+			description: "Permanently delete every note in trash/. Confirm with the user before calling: this is irreversible.",
 			schema:      `{"type":"object","properties":{"confirm":{"type":"boolean","description":"Must be true. Prevents accidental triggers."}},"required":["confirm"]}`,
 			handler: func(ctx context.Context, a args, b Backend) (any, error) {
 				if !a.boolIs("confirm") {
@@ -722,7 +722,7 @@ func tools() []toolDef {
 				return out, nil
 			},
 		},
-		pathTool("backlinks", "Return every note that links to the given note via [[wikilink]]. Run this before renaming a note — the rename will orphan these links.", func(ctx context.Context, b Backend, rel string) (any, error) {
+		pathTool("backlinks", "Return every note that links to the given note via [[wikilink]]. Run this before renaming a note: the rename will orphan these links.", func(ctx context.Context, b Backend, rel string) (any, error) {
 			return b.Backlinks(ctx, rel)
 		}),
 		{
