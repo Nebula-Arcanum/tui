@@ -1079,7 +1079,16 @@ func Run(ctx context.Context, opts Options) error {
 			if previous != nil {
 				ctx = context.WithValue(ctx, previousVaultKey{}, *previous)
 			}
-			result, err := def.handler(ctx, args(a), b)
+			// An edit to a note is recorded so the user can review it in the app.
+			agent := "Assistant"
+			if req.Session != nil {
+				if params := req.Session.InitializeParams(); params != nil && params.ClientInfo != nil {
+					agent = agentForClient(params.ClientInfo.Name)
+				}
+			}
+			result, err := runRecording(ctx, def.name, args(a), b, agent, func() (any, error) {
+				return def.handler(ctx, args(a), b)
+			})
 			if err != nil {
 				return errorResult("Error: " + DescribeToolError(err, b)), nil
 			}

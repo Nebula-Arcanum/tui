@@ -468,8 +468,8 @@ func (v *Vault) WriteNote(rel, body string) (NoteMeta, error) {
 	}
 	// Refuse anything outside the note folders BEFORE a byte lands. This used
 	// to write first and check after, so write_note on `.zennotes/...` created
-	// the file and only then failed: an assistant could plant or alter a note's
-	// comments, its creation date, or anything else the app keeps there.
+	// the file and only then failed: an assistant could plant comments,
+	// creation dates or the agent edit records that say what a note was.
 	folder, ok := v.folderOfAbs(abs)
 	if !ok {
 		return NoteMeta{}, errNotInFolder(rel)
@@ -636,6 +636,7 @@ func (v *Vault) renameNoteFile(rel, nextTitle string) (NoteMeta, error) {
 			return NoteMeta{}, err
 		}
 		_ = v.moveNoteComments(v.relPosix(abs), v.relPosix(target))
+		_ = v.moveAgentEdit(v.relPosix(abs), v.relPosix(target))
 	}
 	v.syncTitleHeading(abs, target, trimmed)
 	return v.readMeta(target, folder, v.Settings().TypstPreambleFolder)
@@ -716,6 +717,7 @@ func (v *Vault) moveBetweenFolders(rel string, target NoteFolder) (NoteMeta, err
 	}
 	v.invalidateLayout()
 	_ = v.moveNoteComments(v.relPosix(abs), v.relPosix(destAbs))
+	_ = v.moveAgentEdit(v.relPosix(abs), v.relPosix(destAbs))
 	return v.readMeta(destAbs, target, v.Settings().TypstPreambleFolder)
 }
 
@@ -777,6 +779,7 @@ func (v *Vault) MoveNote(rel string, target NoteFolder, targetSubpath string) (N
 	}
 	v.invalidateLayout()
 	_ = v.moveNoteComments(v.relPosix(oldAbs), v.relPosix(destAbs))
+	_ = v.moveAgentEdit(v.relPosix(oldAbs), v.relPosix(destAbs))
 	return v.readMeta(destAbs, target, v.Settings().TypstPreambleFolder)
 }
 
@@ -827,6 +830,7 @@ func (v *Vault) DeleteNote(rel string) error {
 	if err := v.removeMetadata(v.relPosix(abs), false); err != nil {
 		return err
 	}
+	_ = v.removeAgentEdit(v.relPosix(abs))
 	return v.removeNoteComments(v.relPosix(abs))
 }
 
@@ -848,6 +852,7 @@ func (v *Vault) EmptyTrash() error {
 			return err
 		}
 		_ = v.removeNoteComments(trashRel + "/" + e.Name())
+		_ = v.removeAgentEditTree(trashRel + "/" + e.Name())
 	}
 	return nil
 }
