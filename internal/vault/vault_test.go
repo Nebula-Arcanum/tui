@@ -459,3 +459,16 @@ func TestDeleteNoteReportsAMissingNote(t *testing.T) {
 		t.Fatal("deleting a note that never existed must fail")
 	}
 }
+
+// write_note used to write the file and check afterwards that it was a note,
+// so a path under .zennotes was created before the error: nothing may land there.
+func TestWriteNoteRefusesInternalFilesBeforeWriting(t *testing.T) {
+	v := newTestVault(t)
+	forged := ".zennotes/agent-edits/inbox/Plan.md.json"
+	if _, err := v.WriteNote(forged, "{}"); err == nil {
+		t.Fatal("writing into .zennotes must fail")
+	}
+	if _, err := os.Stat(filepath.Join(v.root, filepath.FromSlash(forged))); !os.IsNotExist(err) {
+		t.Fatalf("nothing may land in .zennotes: %v", err)
+	}
+}

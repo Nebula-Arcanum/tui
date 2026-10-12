@@ -466,14 +466,18 @@ func (v *Vault) WriteNote(rel, body string) (NoteMeta, error) {
 	if err != nil {
 		return NoteMeta{}, err
 	}
-	if err := v.writeNoteFileAtomic(abs, []byte(body)); err != nil {
-		return NoteMeta{}, err
-	}
-	v.invalidateLayout()
+	// Refuse anything outside the note folders BEFORE a byte lands. This used
+	// to write first and check after, so write_note on `.zennotes/...` created
+	// the file and only then failed: an assistant could plant or alter a note's
+	// comments, its creation date, or anything else the app keeps there.
 	folder, ok := v.folderOfAbs(abs)
 	if !ok {
 		return NoteMeta{}, errNotInFolder(rel)
 	}
+	if err := v.writeNoteFileAtomic(abs, []byte(body)); err != nil {
+		return NoteMeta{}, err
+	}
+	v.invalidateLayout()
 	return v.readMeta(abs, folder, v.Settings().TypstPreambleFolder)
 }
 
