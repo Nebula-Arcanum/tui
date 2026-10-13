@@ -149,11 +149,12 @@ type TaskGroups struct {
 	OverdueCount int
 }
 
-// TaskDialect picks which task-line grammar a scan uses. The desktop app
-// and its CLI disagree on the edges (numbered-list and blockquoted checkboxes
-// exist for the app only, and the CLI leaves `@key:value` fields in the
-// content), and a task id is only stable within one grammar, so each surface
-// keeps the grammar it always had.
+// TaskDialect picks which task grammar a scan uses. Both read the same task
+// lines, numbered-list and blockquoted checkboxes included (the CLI read only
+// bullets until 0.7.2, when the desktop's MCP server began matching the app's
+// lines). They still differ on the edges: the CLI leaves `@key:value` fields in
+// the content and reads fences only up to three spaces in, and a task id is
+// only stable within one grammar, so each surface keeps its own.
 type TaskDialect int
 
 const (
@@ -161,7 +162,8 @@ const (
 	// UI shares so a toggle there edits the line the app would.
 	DialectApp TaskDialect = iota
 	// DialectCLI is the grammar of the desktop's `zn task` commands and MCP
-	// tools, so scripts keep getting the ids they got before.
+	// tools, so `zn mcp` and the desktop's own MCP server list the same tasks
+	// under the same ids.
 	DialectCLI
 )
 

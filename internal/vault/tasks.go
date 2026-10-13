@@ -15,12 +15,13 @@ import (
 // `(?:>\s*)*` is a blockquote prefix, unrelated to the `>` state char. This
 // is the app's TASK_LINE_RE, so the CLI counts task indexes the way the
 // editor's toggles do and the two can never disagree about which line
-// `inbox/Note.md#3` is.
+// `inbox/Note.md#3` is. Both dialects read task lines with it: the desktop's
+// MCP server matches these lines since 2.69.1, and `zn task` and `zn mcp`
+// follow it so an assistant sees the same tasks through either server.
 var (
 	taskFenceRe      = regexp.MustCompile("^(\\s*)(```|~~~)")
 	taskLineRe       = regexp.MustCompile(`^(\s*(?:>\s*)*(?:[-+*]|\d+[.)])\s+\[)( |x|X|>|-|/)(\].*)$`)
 	cliFenceRe       = regexp.MustCompile("^(\\s{0,3})(`{3,}|~{3,})")
-	cliTaskLineRe    = regexp.MustCompile(`^(\s*[-*+]\s+\[)( |x|X|>|-|/)(\].*)$`)
 	inlineDueRe      = regexp.MustCompile(`(?i)(?:^|\s)due:\s*(\S+)`)
 	inlinePriorityRe = regexp.MustCompile(`(?i)(?:^|\s)!(high|med|medium|low|h|m|l)\b`)
 	inlineWaitingRe  = regexp.MustCompile(`(?i)(?:^|\s)@waiting\b`)
@@ -44,9 +45,6 @@ func (d TaskDialect) fenceRe() *regexp.Regexp {
 }
 
 func (d TaskDialect) lineRe() *regexp.Regexp {
-	if d == DialectCLI {
-		return cliTaskLineRe
-	}
 	return taskLineRe
 }
 

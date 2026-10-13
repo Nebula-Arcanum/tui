@@ -425,18 +425,65 @@ func TestCLIDialect(t *testing.T) {
 	body := "- [ ] one @project:x\n1. [ ] numbered\n> - [ ] quoted\n- [x] two\n"
 	app := ParseTasks("a.md", "a", FolderInbox, body, ParseTasksOptions{})
 	cli := ParseTasks("a.md", "a", FolderInbox, body, ParseTasksOptions{Dialect: DialectCLI})
-	if len(app) != 4 || len(cli) != 2 {
+	// Both read the same task lines, so a task has the same id in each; the
+	// CLI keeps `@key:value` fields in the content.
+	if len(app) != 4 || len(cli) != 4 {
 		t.Fatalf("app=%d cli=%d", len(app), len(cli))
+	}
+	for i := range app {
+		if app[i].ID != cli[i].ID {
+			t.Fatalf("task %d: app id %q, cli id %q", i, app[i].ID, cli[i].ID)
+		}
 	}
 	if app[0].Content != "one" || cli[0].Content != "one @project:x" || cli[0].Fields != nil {
 		t.Fatalf("content app=%q cli=%q fields=%v", app[0].Content, cli[0].Content, cli[0].Fields)
 	}
-	if cli[1].ID != "a.md#1" || !cli[1].Checked {
-		t.Fatalf("cli second = %+v", cli[1])
+	if cli[1].Content != "numbered" || cli[2].Content != "quoted" {
+		t.Fatalf("cli numbered=%q quoted=%q", cli[1].Content, cli[2].Content)
 	}
-	next, ok := ToggleTaskInBody(body, 1, DialectCLI)
+	if cli[3].ID != "a.md#3" || !cli[3].Checked {
+		t.Fatalf("cli last = %+v", cli[3])
+	}
+	next, ok := ToggleTaskInBody(body, 3, DialectCLI)
 	if !ok || !strings.Contains(next, "- [ ] two") {
-		t.Fatalf("cli toggle #1 should reopen 'two': %q", next)
+		t.Fatalf("cli toggle #3 should reopen 'two': %q", next)
+	}
+	next, ok = ToggleTaskInBody(body, 1, DialectCLI)
+	if !ok || !strings.Contains(next, "1. [x] numbered") {
+		t.Fatalf("cli toggle #1 should check off 'numbered': %q", next)
+	}
+}
+
+// The desktop's own MCP server reads task lines the same way since 2.69.1;
+// its test "sees the task lines the app sees" (apps/desktop/src/mcp/
+// vault-ops.test.ts) uses this note, so `zn mcp` and the desktop's server list
+// the same tasks under the same ids.
+func TestCLIDialectReadsEveryTaskShape(t *testing.T) {
+	body := strings.Join([]string{
+		"- [ ] bullet",
+		"1. [ ] ordered",
+		"2) [x] ordered done",
+		"> - [ ] quoted",
+		"> > 3. [/] deeply quoted",
+		"-[ ] not a task",
+		"text [ ] not a task",
+		"",
+	}, "\n")
+	cli := ParseTasks("inbox/Shapes.md", "Shapes", FolderInbox, body, ParseTasksOptions{Dialect: DialectCLI})
+	var got []string
+	for _, task := range cli {
+		got = append(got, task.Content)
+	}
+	want := []string{"bullet", "ordered", "ordered done", "quoted", "deeply quoted"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("cli tasks = %q, want %q", got, want)
+	}
+	if !cli[2].Checked || !cli[4].InProgress {
+		t.Fatalf("states: ordered done checked=%v, deeply quoted in progress=%v", cli[2].Checked, cli[4].InProgress)
+	}
+	next, ok := ToggleTaskInBody("1. [ ] first\n> - [ ] quoted\n", 1, DialectCLI)
+	if !ok || next != "1. [ ] first\n> - [x] quoted\n" {
+		t.Fatalf("toggle quoted = %q, %v", next, ok)
 	}
 }
 
