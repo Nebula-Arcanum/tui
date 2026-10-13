@@ -88,7 +88,8 @@ explicitly; `--vault` and `--server` still select a specific destination. The TU
 uses its own saved selection unless `--workspace-source app` is explicitly passed.
 When the desktop app is on a ZenNotes server, desktop-managed commands and `zn mcp`
 authenticate with the token `zn connect` saved for that server's URL: the app keeps
-its own copy in the OS secret store, which zn cannot read.
+its own copy in the OS secret store, which zn cannot read. Since desktop 2.69,
+Settings > MCP > Server token > Let assistants use it saves that same entry for you.
 
 If an older desktop build reports **Unknown command** for `zn tui`, check
 `type -a zn`. A Homebrew installation can be run directly with
@@ -814,9 +815,10 @@ new vault. Nothing an assistant planned in one vault lands in the other.
 A vault on a ZenNotes server that needs a token gets it the way every
 command does: `--token`, then `ZENNOTES_REMOTE_TOKEN`, then the token
 `zn connect` saved for the server's URL. The desktop app keeps its copy in
-the OS secret store, which zn cannot read, so run this once and the MCP
-server authenticates whenever the app is connected to that server, with no
-token in any client config:
+the OS secret store, which zn cannot read. Since desktop 2.69, Settings > MCP >
+Server token > Let assistants use it writes the saved token for you; otherwise
+run this once. Either way the MCP server authenticates whenever the app is
+connected to that server, with no token in any client config:
 
 ```bash
 zn connect https://notes.example.com --no-default

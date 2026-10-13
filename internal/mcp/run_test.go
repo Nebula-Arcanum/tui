@@ -191,6 +191,10 @@ func TestRunNamesTheZnConnectCommandOnA401(t *testing.T) {
 	if !isErr || !strings.Contains(text, "zn connect "+server.URL+" --no-default") || !strings.Contains(text, "ZENNOTES_REMOTE_TOKEN") {
 		t.Fatalf("401 hint: %s", text)
 	}
+	// The desktop app can hand its token over itself (ZenNotes/zennotes#830).
+	if !strings.Contains(text, "Let assistants use it under Settings > MCP > Server token") {
+		t.Fatalf("401 hint does not name the desktop's Server token setting: %s", text)
+	}
 }
 
 // A stale ZENNOTES_REMOTE_TOKEN outranks any token `zn connect` saves, so

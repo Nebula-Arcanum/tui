@@ -67,7 +67,11 @@ The desktop keeps server tokens in the OS secret store, which zn cannot read. Wh
 neither `--token`, `ZENNOTES_REMOTE_TOKEN` nor the desktop profile supplies one, app
 mode uses the token `zn connect` saved for the same server URL. The lookup is keyed
 by the URL the desktop selected, so it authenticates that server and never selects
-a different one.
+a different one. Since desktop 2.69 the app can write that entry itself, on request:
+Settings > MCP > Server token > Let assistants use it. It writes the same
+`credentials.toml` line `zn connect --no-default` would, removes it again on Stop
+sharing or when the server is forgotten, and never touches a token saved with
+`zn connect`.
 
 `zn tui` defaults to the separately saved terminal workspace. Explicit selectors
 and `--workspace-source app|terminal` take precedence. MCP resolves the workspace

@@ -1020,14 +1020,17 @@ func DescribeToolError(err error, b Backend) string {
 	return msg
 }
 
-// tokenHint says how to hand zn a server token. `--no-default` matters: a
-// plain `zn connect` also makes the server zn's own default, and an MCP
+// tokenHint says how to hand zn a server token. Since 2.69 the desktop app
+// does it itself: Settings > MCP > Server token writes the entry `zn connect`
+// would (ZenNotes/zennotes#830), so that comes first, with the version for a
+// zn that is newer than the app. On the terminal way `--no-default` matters:
+// a plain `zn connect` also makes the server zn's own default, and an MCP
 // server in terminal mode would then stop following the app.
 func tokenHint(serverURL string) string {
 	if serverURL == "" {
 		serverURL = "<server-url>"
 	}
-	return "run `zn connect " + serverURL + " --no-default` once in a terminal (it saves the token where zn and this MCP server look, and the next call uses it), or set ZENNOTES_REMOTE_TOKEN in the MCP server's environment."
+	return "in the ZenNotes desktop app (2.69 or later), choose Let assistants use it under Settings > MCP > Server token, or run `zn connect " + serverURL + " --no-default` once in a terminal. Either saves the token where zn and this MCP server look, and the next call uses it. Setting ZENNOTES_REMOTE_TOKEN in the MCP server's environment works too."
 }
 
 // Payload renders a tool result the way the desktop server does: a string
