@@ -729,7 +729,7 @@ func tools() []toolDef {
 			name:        "list_tasks",
 			description: "Return every task (markdown checkbox) in live notes with parsed metadata: due date, priority, @waiting, tags. Filter by status, priority, date range, tag, or folder.",
 			schema: `{"type":"object","properties":{
-"status":{"type":"string","enum":["open","done","waiting","all"],"description":"open = unchecked & not waiting (default). done = checked. waiting = has @waiting. all = everything."},
+"status":{"type":"string","enum":["open","done","waiting","all"],"description":"open = not done, cancelled or waiting (default). done = checked. waiting = has @waiting. all = everything."},
 "priority":{"type":"string","enum":["high","med","low"],"description":"Only tasks at this priority."},
 "dueBefore":{"type":"string","description":"YYYY-MM-DD exclusive upper bound."},
 "dueAfter":{"type":"string","description":"YYYY-MM-DD inclusive lower bound."},
@@ -782,7 +782,9 @@ func tools() []toolDef {
 					if folder != "" && t.NoteFolder != folder {
 						continue
 					}
-					if status == "open" && (t.Checked || t.Waiting || t.Forwarded) {
+					// A `[-]` cancelled task is abandoned, so it is not open either,
+					// as in the desktop app (ZenNotes/zennotes#929).
+					if status == "open" && (t.Checked || t.Waiting || t.Forwarded || t.Cancelled) {
 						continue
 					}
 					if status == "done" && !t.Checked {

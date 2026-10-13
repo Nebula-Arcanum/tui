@@ -25,12 +25,13 @@ func cmdTaskList(ctx context.Context, b backend.Backend, args Args) error {
 		if !showAll {
 			// A forwarded record's live copy sits in the destination note
 			// and lists on its own, so showing both doubled every carried
-			// task. `--all` still surfaces the records.
+			// task. A `[-]` cancelled task is abandoned, so it is not open
+			// either (ZenNotes/zennotes#929). `--all` still surfaces both.
 			if onlyUnchecked {
-				if t.Checked || t.Forwarded {
+				if t.Checked || t.Forwarded || t.Cancelled {
 					continue
 				}
-			} else if t.Checked || t.Waiting || t.Forwarded {
+			} else if t.Checked || t.Waiting || t.Forwarded || t.Cancelled {
 				continue
 			}
 		}
