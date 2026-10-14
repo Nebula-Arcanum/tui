@@ -33,6 +33,19 @@ func emitJSON(value any) {
 	_, _ = stdout.Write(buf.Bytes())
 }
 
+// emitJSONLine writes value as one line of JSON: the shape a stream of events
+// takes, so a reader can act on each line as it arrives.
+func emitJSONLine(value any) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(value); err != nil {
+		fmt.Fprintln(stderr, "zn: "+err.Error())
+		return
+	}
+	_, _ = stdout.Write(buf.Bytes())
+}
+
 func emitLine(line string) {
 	fmt.Fprintln(stdout, line)
 }

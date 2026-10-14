@@ -12,6 +12,7 @@ import (
 
 	"github.com/ZenNotes/tui/internal/backend"
 	"github.com/ZenNotes/tui/internal/config"
+	"github.com/ZenNotes/tui/internal/fswatch"
 	"github.com/ZenNotes/tui/internal/periodic"
 	"github.com/ZenNotes/tui/internal/remote"
 	"github.com/ZenNotes/tui/internal/templates"
@@ -250,7 +251,7 @@ func (a *App) switchTarget(target backend.Target) {
 	}
 	a.saveSession()
 	if a.watcher != nil {
-		a.watcher.close()
+		a.watcher.Close()
 		a.watcher = nil
 	}
 	if a.remoteWatchCancel != nil {
@@ -291,7 +292,7 @@ func (a *App) switchTarget(target backend.Target) {
 	a.pendingOpen = ""
 	a.layout()
 	if target.Kind == backend.KindLocal {
-		if w, err := startWatcher(target.Root); err == nil {
+		if w, err := fswatch.Start(target.Root); err == nil {
 			a.watcher = w
 			a.queue(a.watchCmd())
 		}

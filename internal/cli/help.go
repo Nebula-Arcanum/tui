@@ -66,6 +66,7 @@ var helpSections = []helpSection{
 	{"TASKS", []helpRow{
 		{"task list", "Open checkbox tasks across all notes", "--unchecked  --all  --tag <t>  --include-excluded  --json"},
 		{"task toggle <id>", "Flip a task checkbox by stable id", ""},
+		{"task watch", "Print task status changes as they happen. A server that cannot push them is asked every --interval seconds (default 5)", "--interval <s>  --include-excluded  --json"},
 	}},
 	{"COMMENTS", []helpRow{
 		{"comment list <path>", "Comment threads on a note, with anchors and replies", "--all  --json"},
@@ -163,6 +164,7 @@ var examples = []string{
 	`zn list --server home                # a self-hosted ZenNotes server`,
 	`zn capture "from CI" --server https://notes.example.com`,
 	`zn task list --unchecked --tag work`,
+	`zn task watch --json | jq -c 'select(.status == "ready")'`,
 	`zn tui                               # the whole app, in the terminal`,
 	`zn open ~/Downloads/notes.md`,
 	`zn open ~/code/project/docs   # focus a folder as a session`,

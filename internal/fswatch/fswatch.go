@@ -1,4 +1,6 @@
-package tui
+// Package fswatch batches file-system events under a vault root: the terminal
+// UI's live reload and `zn task watch` (ZenNotes/zennotes#941) share it.
+package fswatch
 
 import (
 	"os"
@@ -10,8 +12,8 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
-// vaultWatcher batches file-system events under the vault root.
-type vaultWatcher struct {
+// Watcher batches file-system events under the vault root.
+type Watcher struct {
 	root    string
 	w       *fsnotify.Watcher
 	batches chan []string
@@ -19,18 +21,20 @@ type vaultWatcher struct {
 	once    sync.Once
 }
 
-func startWatcher(root string) (*vaultWatcher, error) {
+// Start watches root and every folder under it, folders created later
+// included, and batches changes 300 ms after the last one.
+func Start(root string) (*Watcher, error) {
 	w, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
 	}
-	vw := &vaultWatcher{root: root, w: w, batches: make(chan []string, 4), closeCh: make(chan struct{})}
+	vw := &Watcher{root: root, w: w, batches: make(chan []string, 4), closeCh: make(chan struct{})}
 	_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}
 		if d.IsDir() {
-			if skipDir(d.Name()) && path != root {
+			if SkipDir(d.Name()) && path != root {
 				return filepath.SkipDir
 			}
 			_ = w.Add(path)
@@ -41,11 +45,12 @@ func startWatcher(root string) (*vaultWatcher, error) {
 	return vw, nil
 }
 
-func skipDir(name string) bool {
+// SkipDir names the folders never watched: tool and trash folders.
+func SkipDir(name string) bool {
 	return name == ".git" || name == "node_modules" || name == ".obsidian" || name == ".trash"
 }
 
-func (vw *vaultWatcher) loop() {
+func (vw *Watcher) loop() {
 	pending := map[string]bool{}
 	var timer *time.Timer
 	var timerCh <-chan time.Time
@@ -77,7 +82,7 @@ func (vw *vaultWatcher) loop() {
 				continue
 			}
 			if ev.Has(fsnotify.Create) {
-				if info, err := os.Stat(name); err == nil && info.IsDir() && !skipDir(base) {
+				if info, err := os.Stat(name); err == nil && info.IsDir() && !SkipDir(base) {
 					_ = vw.w.Add(name)
 				}
 			}
@@ -104,8 +109,9 @@ func (vw *vaultWatcher) loop() {
 	}
 }
 
-// next blocks until a batch of changed vault-relative paths arrives.
-func (vw *vaultWatcher) next() ([]string, bool) {
+// Next blocks until a batch of changed vault-relative paths arrives; false
+// once the watcher is closed.
+func (vw *Watcher) Next() ([]string, bool) {
 	select {
 	case paths, ok := <-vw.batches:
 		return paths, ok
@@ -114,7 +120,8 @@ func (vw *vaultWatcher) next() ([]string, bool) {
 	}
 }
 
-func (vw *vaultWatcher) close() {
+// Close stops watching; safe to call more than once.
+func (vw *Watcher) Close() {
 	vw.once.Do(func() {
 		close(vw.closeCh)
 		_ = vw.w.Close()

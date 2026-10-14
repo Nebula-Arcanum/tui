@@ -213,7 +213,9 @@ func parseTaskFile(path, title string, folder NoteFolder, body string, dialect T
 		CompletedDate: normalizeDueDate(firstScalar(fm["completeddate"])),
 	}
 	if dialect == DialectCLI {
-		task.Fields, task.Status = nil, ""
+		// The CLI's JSON keeps the desktop CLI's key set, but says which status
+		// column the task is in, as the app does (ZenNotes/zennotes#941).
+		task.Fields = nil
 	}
 	return task, true
 }
@@ -275,10 +277,18 @@ func ParseTasks(path, title string, folder NoteFolder, body string, opts ParseTa
 			priority = defaults.Priority
 		}
 		fields := tokens.fields
+		status := ""
 		if opts.Dialect == DialectCLI {
+			// The CLI leaves `@key:value` in the content and reports no fields,
+			// but its JSON still says which status column the task is in, read
+			// the way the app reads it (ZenNotes/zennotes#941).
 			fields = nil
-		} else if _, hasStatus := fields["status"]; !hasStatus && defaults.Status != "" {
-			fields["status"] = defaults.Status
+			status = inlineStatus(tail, defaults.Status)
+		} else {
+			if _, hasStatus := fields["status"]; !hasStatus && defaults.Status != "" {
+				fields["status"] = defaults.Status
+			}
+			status = fields["status"]
 		}
 		content := tokens.stripped
 		if content == "" {
@@ -302,7 +312,7 @@ func ParseTasks(path, title string, folder NoteFolder, body string, opts ParseTa
 			Priority:   priority,
 			Waiting:    tokens.waiting,
 			Fields:     fields,
-			Status:     fields["status"],
+			Status:     status,
 			Tags:       tokens.tags,
 		})
 		taskIndex++
@@ -316,6 +326,18 @@ type taskTokens struct {
 	fields        map[string]string
 	tags          []string
 	stripped      string
+}
+
+// inlineStatus is the `@status:` a checkbox line carries, or the note's
+// frontmatter status when it carries none: the status the app's grammar gives
+// the line, without stripping anything from the content.
+func inlineStatus(tail, fallback string) string {
+	for _, fm := range inlineFieldRe.FindAllStringSubmatch(tail, -1) {
+		if strings.ToLower(fm[1]) == "status" {
+			return strings.ToLower(fm[2])
+		}
+	}
+	return fallback
 }
 
 func extractTaskTokens(tail string, dialect TaskDialect) taskTokens {

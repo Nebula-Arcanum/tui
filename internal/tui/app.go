@@ -16,6 +16,7 @@ import (
 
 	"github.com/ZenNotes/tui/internal/backend"
 	"github.com/ZenNotes/tui/internal/config"
+	"github.com/ZenNotes/tui/internal/fswatch"
 	"github.com/ZenNotes/tui/internal/keymaps"
 	"github.com/ZenNotes/tui/internal/themes"
 	"github.com/ZenNotes/tui/internal/vault"
@@ -124,7 +125,7 @@ type App struct {
 	toasts      []toast
 	nextToastID int
 
-	watcher      *vaultWatcher
+	watcher      *fswatch.Watcher
 	ignoredPaths map[string]time.Time
 	sessionDirty bool
 	sessionSaved time.Time
@@ -249,7 +250,7 @@ func (a *App) Init() tea.Cmd {
 		a.loadIndexCmd(),
 	}
 	if a.opts.Target.Kind == backend.KindLocal {
-		w, err := startWatcher(a.opts.Target.Root)
+		w, err := fswatch.Start(a.opts.Target.Root)
 		if err == nil {
 			a.watcher = w
 			cmds = append(cmds, a.watchCmd())
@@ -265,7 +266,7 @@ func (a *App) watchCmd() tea.Cmd {
 		return nil
 	}
 	return func() tea.Msg {
-		paths, ok := watcher.next()
+		paths, ok := watcher.Next()
 		if !ok {
 			return nil
 		}
@@ -286,7 +287,7 @@ func (a *App) shutdown() error {
 	}
 	a.saveSession()
 	if a.watcher != nil {
-		a.watcher.close()
+		a.watcher.Close()
 	}
 	return err
 }

@@ -44,6 +44,7 @@ func dispatchTable() map[string]Handler {
 		"tag find":        cmdTagFind,
 		"task list":       cmdTaskList,
 		"task toggle":     cmdTaskToggle,
+		"task watch":      cmdTaskWatch,
 		"comment list":    cmdCommentList,
 		"comment add":     cmdCommentAdd,
 		"comment reply":   cmdCommentReply,

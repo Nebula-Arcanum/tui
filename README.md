@@ -198,7 +198,7 @@ Use `--no-input` and structured errors for automation; see
 | Search | `search <query>` `search-title <q>` `backlinks <path>` |
 | Folders | `folder list\|create\|rename\|delete` |
 | Tags | `tag list\|find` |
-| Tasks | `task list\|toggle` |
+| Tasks | `task list\|toggle\|watch` |
 | Comments | `comment list\|add\|reply\|resolve`, threads on a note shared with the app and its MCP tools |
 | Databases | `base list\|create\|rows\|get\|add\|set\|convert`, for `.base` folders and loose `.csv` files |
 | Vaults | `setup` `init` `connect` `disconnect` `use` `vault info\|list\|mode\|add\|remove` |
@@ -241,6 +241,39 @@ replies and resolve/reopen operations take a thread ID. `base add` and
 `base set` accept repeated `--set Field=Value` flags for existing fields;
 `base add --body` or `--page` also creates a record page. `base convert`
 turns a loose CSV into a `.base` folder.
+
+### Watching task status
+
+`zn task watch` prints a line each time a task's status changes: a task
+note's `status:` in its frontmatter, a checkbox task's `@status:`, or its
+checkbox. Moving a card on a Kanban board, editing the note in any editor and
+`zn task toggle` all count. Editing a task's words, or saving it with the
+same status, does not. With `--json` each change is one line of JSON, so a
+script can act on each one as it arrives:
+
+```bash
+zn task watch --json | while IFS= read -r change; do
+  if [ "$(jq -r .status <<<"$change")" = ready ]; then
+    ./start-agent.sh "$(jq -r .path <<<"$change")"
+  fi
+done
+```
+
+```json
+{"at":"2026-10-14T15:47:24Z","id":"inbox/Parser.md#task","path":"inbox/Parser.md","link":"zennotes://open?path=inbox/Parser.md","title":"Parser","kind":"file","content":"Parser","previousStatus":"backlog","status":"ready","lineNumber":0}
+```
+
+`status` and `previousStatus` follow the Kanban board. A task note's status
+is its own `status:` (`open` when it has none). A checkbox task is `done`,
+`cancelled` or `forwarded` once its box says so; until then it is its
+`@status:` or the status its note's frontmatter gives it, and otherwise
+`waiting`, `in-progress` or `open`. `kind` is `file` for a task note.
+
+zn only reports: whatever runs on a change is your own script, so nothing
+that executes lives in the vault. A local vault is watched through its
+files. A server pushes its changes; one that cannot (an older server, or a
+proxy without WebSockets) is asked every `--interval` seconds instead, 5 by
+default. `zn task list --json` carries each task's `status` too.
 
 The [online command reference](https://zennotes.org/tui/docs#commands) lists
 the command syntax and flags by area.
@@ -847,6 +880,7 @@ internal/keymaps         the bindable-action catalog and overrides
 internal/periodic        daily, weekly and monthly note patterns
 internal/templates       built-in and custom templates
 internal/search          note search scoring
+internal/fswatch         batched file events under a vault: live reload, task watch
 ```
 
 `go test ./...` runs the suite. The command tables, task grammar, database

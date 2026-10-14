@@ -47,7 +47,7 @@ func TestDesktopLauncherDoesNotChangeTUIVaultSwitches(t *testing.T) {
 			a := newApp(context.Background(), Options{Backend: b, Target: target, WorkspaceSource: tc.source}, config.Prefs{}, true)
 			t.Cleanup(func() {
 				if a.watcher != nil {
-					a.watcher.close()
+					a.watcher.Close()
 				}
 			})
 			for _, cmd := range a.parityCommands() {
