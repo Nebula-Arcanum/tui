@@ -100,15 +100,23 @@ func TestTaskWatchPrintsOneJSONLinePerStatusChange(t *testing.T) {
 	writeVaultFile(t, root, "inbox/Plan.md", "# Plan\n\n- [ ] Write docs @status:backlog\n")
 	output, changed, stop := watchTasks(t, root, true)
 
-	// Each send waits for the scan before it to finish. The first edit keeps
-	// every status, so it prints nothing.
+	// A send returns once the loop has the signal, while its scan may still
+	// be reading, so a write after it can land mid-scan; the scan then sees
+	// the note empty or rewritten, and either way the change is printed once.
+	// Waiting for each line before the next write keeps their order.
+	printed := func() int { return strings.Count(output.String(), "\n") }
+	// An edit that keeps every status prints nothing.
 	writeVaultFile(t, root, "inbox/Ship it.md", "---\ntags: [task]\nstatus: backlog\n---\nBuild the thing, carefully.\n")
+	changed <- struct{}{}
 	changed <- struct{}{}
 	writeVaultFile(t, root, "inbox/Ship it.md", "---\ntags: [task]\nstatus: ready\n---\nBuild the thing, carefully.\n")
 	changed <- struct{}{}
+	waitFor(t, "the task note's change", func() bool { return printed() >= 1 })
 	writeVaultFile(t, root, "inbox/Plan.md", "# Plan\n\n- [ ] Write docs @status:review\n")
 	changed <- struct{}{}
-	waitFor(t, "two changes", func() bool { return strings.Count(output.String(), "\n") >= 2 })
+	waitFor(t, "the checkbox task's change", func() bool { return printed() >= 2 })
+	changed <- struct{}{}
+	changed <- struct{}{}
 	stop()
 
 	lines := strings.Split(strings.TrimSuffix(output.String(), "\n"), "\n")

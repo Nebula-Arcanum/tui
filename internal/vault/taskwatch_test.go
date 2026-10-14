@@ -118,3 +118,27 @@ func TestDiffTaskStatusesMatchesTasksByNoteAndWords(t *testing.T) {
 		t.Fatalf("got %+v, want %+v", got, want)
 	}
 }
+
+// A scan can miss a task that is still there: a note read while an editor
+// rewrites it in place is empty for that moment. The change the task carries
+// when it comes back is still reported, and only once.
+func TestTaskStatusTrackerRemembersTasksAScanMissed(t *testing.T) {
+	taskNote := func(status string) []Task {
+		return watchScan(watchedNote, "---\ntags: [task]\nstatus: "+status+"\n---\nBuild it.\n")
+	}
+	tracker := NewTaskStatusTracker(taskNote("backlog"))
+	if got := tracker.Update(watchScan(watchedNote, "")); len(got) != 0 {
+		t.Fatalf("an empty read reported %+v", statusMoves(got))
+	}
+	got := statusMoves(tracker.Update(taskNote("ready")))
+	if want := []statusMove{{watchedNote + "#task", "backlog", "ready"}}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("after the empty read: got %+v, want %+v", got, want)
+	}
+	if got := tracker.Update(taskNote("ready")); len(got) != 0 {
+		t.Fatalf("the same change was reported twice: %+v", statusMoves(got))
+	}
+	later := append(taskNote("ready"), watchScan("inbox/New.md", "- [ ] Fresh @status:ready\n")...)
+	if got := tracker.Update(later); len(got) != 0 {
+		t.Fatalf("a task seen for the first time was reported: %+v", statusMoves(got))
+	}
+}

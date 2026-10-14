@@ -66,26 +66,43 @@ func (k *taskIdentity) of(t Task) string {
 	return base + "\x00" + strconv.Itoa(n)
 }
 
+// TaskStatusTracker remembers the last status of every task it has seen, so
+// a task that drops out of one scan and comes back with another status is
+// still reported. A scan can miss a task that is still there: a note read
+// while an editor rewrites it in place is empty for that moment, and a sync
+// tool may delete a file before it writes the new one.
+type TaskStatusTracker struct {
+	last map[string]string
+}
+
+// NewTaskStatusTracker starts from a first scan, whose tasks are known but
+// not reported.
+func NewTaskStatusTracker(tasks []Task) *TaskStatusTracker {
+	t := &TaskStatusTracker{last: map[string]string{}}
+	t.Update(tasks)
+	return t
+}
+
+// Update takes the next scan and returns the tasks whose status differs from
+// the last one seen for them, in the scan's order. A task never seen before
+// is remembered, not reported; one missing from this scan keeps its status.
+func (t *TaskStatusTracker) Update(tasks []Task) []TaskStatusChange {
+	keys := taskIdentity{seen: map[string]int{}}
+	var changes []TaskStatusChange
+	for _, task := range tasks {
+		key := keys.of(task)
+		status := TaskStatusName(task)
+		if before, ok := t.last[key]; ok && before != status {
+			changes = append(changes, TaskStatusChange{Task: task, PreviousStatus: before, Status: status})
+		}
+		t.last[key] = status
+	}
+	return changes
+}
+
 // DiffTaskStatuses lists the tasks found in both scans whose status changed,
 // in the order of the newer scan. Tasks that appear, disappear, move to
 // another note or have their words edited are not status changes.
 func DiffTaskStatuses(previous, next []Task) []TaskStatusChange {
-	before := map[string]Task{}
-	keys := taskIdentity{seen: map[string]int{}}
-	for _, t := range previous {
-		before[keys.of(t)] = t
-	}
-	var changes []TaskStatusChange
-	keys = taskIdentity{seen: map[string]int{}}
-	for _, t := range next {
-		old, ok := before[keys.of(t)]
-		if !ok {
-			continue
-		}
-		from, to := TaskStatusName(old), TaskStatusName(t)
-		if from != to {
-			changes = append(changes, TaskStatusChange{Task: t, PreviousStatus: from, Status: to})
-		}
-	}
-	return changes
+	return NewTaskStatusTracker(previous).Update(next)
 }

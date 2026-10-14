@@ -727,9 +727,9 @@ func tools() []toolDef {
 		}),
 		{
 			name:        "list_tasks",
-			description: "Return every task (markdown checkbox) in live notes with parsed metadata: due date, priority, @waiting, tags. Filter by status, priority, date range, tag, or folder.",
+			description: "Return every task (markdown checkbox) in live notes with parsed metadata: due date, priority, @waiting, tags, and status, the column a Kanban board grouped by status shows it in (a task note’s `status:`, a line’s `@status:`, or the frontmatter `status:` of its note). Filter by state, priority, date range, tag, or folder.",
 			schema: `{"type":"object","properties":{
-"status":{"type":"string","enum":["open","done","waiting","all"],"description":"open = not done, cancelled or waiting (default). done = checked. waiting = has @waiting. all = everything."},
+"status":{"type":"string","enum":["open","done","waiting","all"],"description":"The task’s state, not its status column. open = not done, cancelled or waiting (default). done = checked. waiting = has @waiting. all = everything."},
 "priority":{"type":"string","enum":["high","med","low"],"description":"Only tasks at this priority."},
 "dueBefore":{"type":"string","description":"YYYY-MM-DD exclusive upper bound."},
 "dueAfter":{"type":"string","description":"YYYY-MM-DD inclusive lower bound."},

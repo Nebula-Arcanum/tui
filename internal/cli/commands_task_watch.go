@@ -60,7 +60,7 @@ func cmdTaskWatch(ctx context.Context, b backend.Backend, args Args) error {
 		return err
 	}
 	defer stop()
-	previous, err := b.ScanTasks(ctx, opts)
+	first, err := b.ScanTasks(ctx, opts)
 	if err != nil {
 		return err
 	}
@@ -68,14 +68,15 @@ func cmdTaskWatch(ctx context.Context, b backend.Backend, args Args) error {
 	if !asJSON {
 		fmt.Fprintf(stderr, "Watching %s for task status changes. Ctrl+C stops.\n", b.Label())
 	}
-	return followTaskStatuses(ctx, b, opts, previous, changed, asJSON)
+	return followTaskStatuses(ctx, b, opts, first, changed, asJSON)
 }
 
 // followTaskStatuses scans again on each signal and reports every task whose
-// status moved since the scan before, until ctx ends or changed closes. A
-// failed scan (a server briefly away) is reported and the watch goes on; the
-// next scan compares against the last good one, so nothing is lost.
-func followTaskStatuses(ctx context.Context, b backend.Backend, opts vault.ParseTasksOptions, previous []vault.Task, changed <-chan struct{}, asJSON bool) error {
+// status moved since it was last seen, until ctx ends or changed closes. A
+// failed scan (a server briefly away) is reported and the watch goes on, and
+// a task a scan misses keeps its last status, so no change is lost.
+func followTaskStatuses(ctx context.Context, b backend.Backend, opts vault.ParseTasksOptions, first []vault.Task, changed <-chan struct{}, asJSON bool) error {
+	tracker := vault.NewTaskStatusTracker(first)
 	for {
 		select {
 		case <-ctx.Done():
@@ -93,10 +94,9 @@ func followTaskStatuses(ctx context.Context, b backend.Backend, opts vault.Parse
 			emitWatchError(err, asJSON)
 			continue
 		}
-		for _, change := range vault.DiffTaskStatuses(previous, next) {
+		for _, change := range tracker.Update(next) {
 			emitTaskChange(change, asJSON)
 		}
-		previous = next
 	}
 }
 
