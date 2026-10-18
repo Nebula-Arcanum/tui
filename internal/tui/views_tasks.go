@@ -395,8 +395,24 @@ func (v *tasksView) buildColumns(a *App) {
 			}
 		}
 		configured := len(values)
-		for _, t := range v.tasks {
+		configuredSet := map[string]bool{}
+		for _, val := range values {
+			configuredSet[val] = true
+		}
+		// Closed tasks stay off a board, with one exception (desktop #949): a
+		// task note whose value names a configured column stays in it, done or
+		// cancelled. A task note's `status:` is its one state, so `status: done`
+		// both closes it and names its column. Only configured columns count, or
+		// every finished note would become a column; checkbox tasks keep the rule,
+		// since a status inherited from the note would pull in checked subtasks.
+		onBoard := func(t vault.Task) bool {
 			if !t.Checked && !t.Cancelled && !t.Forwarded {
+				return true
+			}
+			return t.Kind == "file" && configuredSet[strings.ToLower(strings.TrimSpace(t.Fields[key]))]
+		}
+		for _, t := range v.tasks {
+			if onBoard(t) {
 				add(t.Fields[key])
 			}
 		}
@@ -406,7 +422,7 @@ func (v *tasksView) buildColumns(a *App) {
 		}
 		cols = append(cols, kanbanColumn{id: "__none__", title: "No " + key})
 		for _, t := range v.tasks {
-			if t.Checked || t.Cancelled || t.Forwarded {
+			if !onBoard(t) {
 				continue
 			}
 			val := strings.ToLower(strings.TrimSpace(t.Fields[key]))

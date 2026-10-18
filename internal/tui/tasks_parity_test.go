@@ -85,6 +85,33 @@ func TestKanbanCustomStatusUsesConfiguredThenDiscoveredColumns(t *testing.T) {
 	}
 }
 
+// Desktop #949: `status: done` closes a task note and names its column, so a
+// configured Done column keeps it; checkbox tasks and unlisted statuses do not.
+func TestKanbanCustomStatusKeepsClosedTaskNotesInConfiguredColumns(t *testing.T) {
+	status := func(s string) map[string]string { return map[string]string{"status": s} }
+	tasks := []vault.Task{
+		{ID: "done-note", Kind: "file", Checked: true, Fields: status("done")},
+		{ID: "active-note", Kind: "file", InProgress: true, Fields: status("in-progress")},
+		{ID: "cancelled-note", Kind: "file", Cancelled: true, Fields: status("cancelled")},
+		{ID: "finished-note", Kind: "file", Checked: true, Fields: status("completed")},
+		{ID: "checked-step", Checked: true, Fields: status("in-progress")},
+		{ID: "shipped-step", Checked: true, Fields: status("done")},
+		{ID: "next-step", Fields: status("in-progress")},
+	}
+	v := &tasksView{groupBy: "field:status", tasks: tasks}
+	a := &App{prefs: prefsView{Prefs: config.Prefs{KanbanStatuses: []string{"open", "in-progress", "waiting", "done"}}}}
+	v.buildColumns(a)
+	assertKanbanColumnIDs(t, v, []string{"open", "in-progress", "waiting", "done", "__none__"})
+	assertKanbanCards(t, v, "done", []string{"done-note"})
+	assertKanbanCards(t, v, "in-progress", []string{"active-note", "next-step"})
+
+	v = &tasksView{groupBy: "field:status", tasks: tasks}
+	a.prefs.KanbanStatuses = []string{"in-progress", "done", "cancelled"}
+	v.buildColumns(a)
+	assertKanbanColumnIDs(t, v, []string{"in-progress", "done", "cancelled", "__none__"})
+	assertKanbanCards(t, v, "cancelled", []string{"cancelled-note"})
+}
+
 func TestKanbanProjectFieldSeparatesLiteralNoneFromMissingValue(t *testing.T) {
 	v := &tasksView{groupBy: "field:project", tasks: []vault.Task{
 		{ID: "literal-none", Fields: map[string]string{"project": "none"}},
