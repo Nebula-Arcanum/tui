@@ -84,6 +84,9 @@ type VaultSettings struct {
 	// TasksExcludedFolders are vault-relative directory paths whose notes
 	// never feed the Tasks surfaces.
 	TasksExcludedFolders []string
+	// TasksIncludedFolders, the Task folders (#962), narrow Tasks to the
+	// notes inside them. Empty means the whole vault.
+	TasksIncludedFolders []string
 	TypstPreambleFolder  string
 	// Raw is the decoded file, kept so a targeted write can preserve every
 	// key this process does not model.
@@ -183,6 +186,7 @@ func normalizeVaultSettings(raw map[string]any) VaultSettings {
 	s.SystemFolderPaths = NormalizeSystemFolderPaths(stringMapOf(raw["systemFolderPaths"]))
 	if tasks := mapOf(raw["tasks"]); tasks != nil {
 		s.TasksExcludedFolders = NormalizeTasksExcludedFolders(stringsOf(tasks["excludedFolders"]))
+		s.TasksIncludedFolders = NormalizeTasksExcludedFolders(stringsOf(tasks["includedFolders"]))
 	}
 	if typst := mapOf(raw["typstPreambles"]); typst != nil {
 		if folder := normalizeTypstPreambleFolder(stringOf(typst["folder"])); folder != "" {
@@ -363,7 +367,9 @@ func SystemFolderForDirName(name string, paths map[string]string) (NoteFolder, b
 	return "", false
 }
 
-// --- tasks exclusion (mirrors shared-domain/tasks-excluded-folders.ts) ---
+// --- tasks folder lists (mirrors shared-domain/tasks-excluded-folders.ts) ---
+// The excluded folders (#458) and the Task folders (#962) share one set of
+// validation rules; keep them byte-compatible with the desktop and the server.
 
 func normalizeTasksExcludedFolder(value string) string {
 	parts := []string{}
@@ -387,7 +393,8 @@ func normalizeTasksExcludedFolder(value string) string {
 	return joined
 }
 
-// NormalizeTasksExcludedFolders drops invalid entries and duplicates.
+// NormalizeTasksExcludedFolders drops invalid entries and duplicates. The
+// Task folders list is validated with it too.
 func NormalizeTasksExcludedFolders(values []string) []string {
 	out := []string{}
 	seen := map[string]struct{}{}
@@ -405,15 +412,70 @@ func NormalizeTasksExcludedFolders(values []string) []string {
 	return out
 }
 
-// IsPathExcludedFromTasks reports whether a vault-relative POSIX path lives
-// inside any excluded folder (segment-prefix match, case-sensitive).
-func IsPathExcludedFromTasks(relPath string, excluded []string) bool {
-	for _, folder := range excluded {
+// IsPathExcludedFromTasks reports whether a vault-relative POSIX path is kept
+// out of Tasks by the folder lists (segment-prefix match, case-sensitive).
+// Once included names folders, a path outside all of them is out as well;
+// excluded still applies inside them.
+func IsPathExcludedFromTasks(relPath string, excluded, included []string) bool {
+	if len(included) > 0 && !isInsideAnyFolder(relPath, included) {
+		return true
+	}
+	return isInsideAnyFolder(relPath, excluded)
+}
+
+func isInsideAnyFolder(relPath string, folders []string) bool {
+	for _, folder := range folders {
 		if relPath == folder || strings.HasPrefix(relPath, folder+"/") {
 			return true
 		}
 	}
 	return false
+}
+
+// rewriteFolderList repoints one list's entries after a folder rename or move:
+// an entry naming the folder, or a folder inside it, follows it.
+func rewriteFolderList(list []string, oldRel, newRel string) []string {
+	out := make([]string, 0, len(list))
+	for _, entry := range list {
+		if entry == oldRel || strings.HasPrefix(entry, oldRel+"/") {
+			entry = newRel + entry[len(oldRel):]
+		}
+		out = append(out, entry)
+	}
+	return NormalizeTasksExcludedFolders(out)
+}
+
+func listHasFolder(list []string, rel string) bool {
+	for _, entry := range list {
+		if entry == rel || strings.HasPrefix(entry, rel+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+// rewriteTasksFoldersForRename keeps the vault's Tasks folder lists naming the
+// same folders after a rename or move, writing vault.json only when an entry
+// moves. Mirrors rewriteTasksFoldersForRename in tasks-excluded-folders.ts.
+func (v *Vault) rewriteTasksFoldersForRename(oldRel, newRel string) error {
+	if oldRel == "" || newRel == "" || oldRel == newRel {
+		return nil
+	}
+	s := v.Settings()
+	if !listHasFolder(s.TasksExcludedFolders, oldRel) && !listHasFolder(s.TasksIncludedFolders, oldRel) {
+		return nil
+	}
+	return v.UpdateSettings(func(raw map[string]any) {
+		tasks, _ := raw["tasks"].(map[string]any)
+		if tasks == nil {
+			return
+		}
+		for _, key := range []string{"excludedFolders", "includedFolders"} {
+			if list := NormalizeTasksExcludedFolders(stringsOf(tasks[key])); len(list) > 0 {
+				tasks[key] = rewriteFolderList(list, oldRel, newRel)
+			}
+		}
+	})
 }
 
 // --- typst preamble folder (mirrors shared-domain/typst-preamble-folder.ts) ---

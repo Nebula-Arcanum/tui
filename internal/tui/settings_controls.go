@@ -65,6 +65,7 @@ func (v *settingsView) refresh(a *App) {
 				add(settingRow{p.name, kv.k, kv.v, true})
 			}
 		}
+		add(settingRow{"tasks", "includedFolders", strings.Join(a.idx.settings.TasksIncludedFolders, ", "), true})
 		add(settingRow{"tasks", "excludedFolders", strings.Join(a.idx.settings.TasksExcludedFolders, ", "), true})
 	}
 	v.list.clamp(len(v.settings))
@@ -121,13 +122,7 @@ func (v *settingsView) edit(a *App, row settingRow) {
 		if row.vault {
 			err = a.backend.UpdateVaultSettings(a.ctx, func(raw map[string]any) {
 				if row.section == "tasks" {
-					parts := []string{}
-					for _, s := range strings.Split(fmt.Sprint(value), ",") {
-						if s = strings.TrimSpace(s); s != "" {
-							parts = append(parts, s)
-						}
-					}
-					raw["tasksExcludedFolders"] = parts
+					setTasksFolderList(raw, row.key, fmt.Sprint(value))
 					return
 				}
 				m, _ := raw[row.section].(map[string]any)
@@ -190,4 +185,33 @@ func (v *settingsView) edit(a *App, row settingRow) {
 			save(text)
 		}
 	})
+}
+
+// setTasksFolderList writes one of the vault's Tasks folder lists
+// (`tasks.excludedFolders`, or the Task folders in `tasks.includedFolders`,
+// #962) from a comma-separated edit, keeping the other keys under `tasks`. An
+// empty edit removes the list, and an empty `tasks` object goes with it. The
+// excluded list used to land in a top-level `tasksExcludedFolders` key that no
+// runtime reads, so an edit here changed nothing.
+func setTasksFolderList(raw map[string]any, key, value string) {
+	parts := []string{}
+	for _, s := range strings.Split(value, ",") {
+		if s = strings.TrimSpace(s); s != "" {
+			parts = append(parts, s)
+		}
+	}
+	tasks, _ := raw["tasks"].(map[string]any)
+	if tasks == nil {
+		tasks = map[string]any{}
+	}
+	if len(parts) == 0 {
+		delete(tasks, key)
+	} else {
+		tasks[key] = parts
+	}
+	if len(tasks) == 0 {
+		delete(raw, "tasks")
+	} else {
+		raw["tasks"] = tasks
+	}
 }

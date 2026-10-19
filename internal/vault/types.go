@@ -169,9 +169,10 @@ const (
 
 // ParseTasksOptions controls scanning past the exclusions and the grammar.
 type ParseTasksOptions struct {
-	// IncludeExcluded scans past the vault's excluded-folders list and the
-	// note-level frontmatter `tasks:` opt-out. The `--include-excluded`
-	// escape hatch; listings never set it on their own.
+	// IncludeExcluded scans past the vault's folder lists (its excluded
+	// folders and its Task folders, #962) and the note-level frontmatter
+	// `tasks:` opt-out. The `--include-excluded` escape hatch; listings never
+	// set it on their own.
 	IncludeExcluded bool
 	Dialect         TaskDialect
 }

@@ -916,6 +916,11 @@ func (v *Vault) RenameFolder(folder NoteFolder, oldSubpath, newSubpath string) (
 		return "", err
 	}
 	v.invalidateLayout()
+	// The Tasks folder lists name on-disk paths, so they follow the folder: a
+	// renamed Task folder left behind would empty Tasks (#962).
+	if err := v.rewriteTasksFoldersForRename(v.relPosix(oldAbs), v.relPosix(newAbs)); err != nil {
+		return "", err
+	}
 	return newClean, nil
 }
 
@@ -992,12 +997,15 @@ func (v *Vault) SearchText(query string, limit int) ([]TextSearchMatch, error) {
 // --- tasks ---
 
 // ScanTasks parses every task in every live note, honoring the vault's
-// excluded folders and each note's `tasks:` opt-out unless asked not to.
+// excluded folders, its Task folders (#962) and each note's `tasks:` opt-out
+// unless asked not to.
 func (v *Vault) ScanTasks(opts ParseTasksOptions) ([]Task, error) {
 	settings := v.Settings()
 	excluded := settings.TasksExcludedFolders
+	included := settings.TasksIncludedFolders
 	if opts.IncludeExcluded {
 		excluded = nil
+		included = nil
 	}
 	files := []noteFile{}
 	v.walkNotes(LiveFolders, false, func(f noteFile) { files = append(files, f) })
@@ -1006,7 +1014,7 @@ func (v *Vault) ScanTasks(opts ParseTasksOptions) ([]Task, error) {
 	var wg sync.WaitGroup
 	for i, f := range files {
 		rel := v.relPosix(f.abs)
-		if IsPathExcludedFromTasks(rel, excluded) {
+		if IsPathExcludedFromTasks(rel, excluded, included) {
 			continue
 		}
 		wg.Add(1)
@@ -1047,7 +1055,8 @@ func (v *Vault) ScanTasksForPath(rel string, opts ParseTasksOptions) ([]Task, er
 		return []Task{}, nil
 	}
 	relPosix := v.relPosix(abs)
-	if !opts.IncludeExcluded && IsPathExcludedFromTasks(relPosix, v.Settings().TasksExcludedFolders) {
+	settings := v.Settings()
+	if !opts.IncludeExcluded && IsPathExcludedFromTasks(relPosix, settings.TasksExcludedFolders, settings.TasksIncludedFolders) {
 		return []Task{}, nil
 	}
 	title := strings.TrimSuffix(filepath.Base(abs), filepath.Ext(abs))
