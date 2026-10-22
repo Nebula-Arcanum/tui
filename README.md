@@ -550,7 +550,8 @@ Enter after a code fence creates its closing fence. `:table` adds/removes
 rows or columns and sets alignment; `:formatting` opens formatting actions.
 These edits participate in undo. `:format` still formats the whole note.
 `vim.wrapped_line_motions = "display"` makes `$`, `I` and `A` use the
-visible wrapped row; `"logical"` uses the source line.
+visible wrapped row (press `$` again at the end of a row to reach the end of
+the line); `"logical"` uses the source line.
 
 `Space l e` opens the note in `$VISUAL` or `$EDITOR` at the cursor line and
 reloads it afterwards. In Vim mode, `Ctrl+Z` suspends to the shell.
