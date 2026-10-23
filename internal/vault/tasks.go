@@ -1034,7 +1034,9 @@ func ComposeTaskFile(in ComposeTaskFileInput) string {
 }
 
 // GroupTasks buckets tasks for the list view. Waiting overrides everything
-// but Done; tasks without a due date land in Today.
+// but Done. Tasks without a due date have their own group, as in the desktop
+// app since ZenNotes 2.76 (#990): they used to land in Today. A daily-note task
+// is dated by InferDailyTaskDueDates before it gets here, so it stays in Today.
 func GroupTasks(tasks []Task, today time.Time) TaskGroups {
 	todayISO := TodayISO(today)
 	g := TaskGroups{}
@@ -1049,7 +1051,7 @@ func GroupTasks(tasks []Task, today time.Time) TaskGroups {
 		case task.Waiting:
 			g.Waiting = append(g.Waiting, task)
 		case task.Due == "":
-			g.Today = append(g.Today, task)
+			g.Undated = append(g.Undated, task)
 		case task.Due < todayISO:
 			g.Today = append(g.Today, task)
 			g.OverdueCount++
@@ -1090,6 +1092,7 @@ func GroupTasks(tasks []Task, today time.Time) TaskGroups {
 	}
 	sortTasks(g.Today, byPriorityThenDue)
 	sortTasks(g.Upcoming, byDueThenPath)
+	sortTasks(g.Undated, byPriorityThenDue)
 	sortTasks(g.Waiting, byPriorityThenDue)
 	sortTasks(g.Done, byPath)
 	sortTasks(g.Forwarded, byDueThenPath)

@@ -388,7 +388,8 @@ func TestGroupTasks(t *testing.T) {
 		{ID: "a#7", Due: "2026-09-08", Priority: "high"},
 	}
 	g := GroupTasks(tasks, today)
-	if len(g.Today) != 3 || g.OverdueCount != 1 || len(g.Upcoming) != 1 || len(g.Waiting) != 1 || len(g.Done) != 1 || len(g.Forwarded) != 1 || len(g.Cancelled) != 1 {
+	// An undated task has its own group (#990), out of Today.
+	if len(g.Today) != 2 || g.OverdueCount != 1 || len(g.Upcoming) != 1 || len(g.Undated) != 1 || g.Undated[0].ID != "a#1" || len(g.Waiting) != 1 || len(g.Done) != 1 || len(g.Forwarded) != 1 || len(g.Cancelled) != 1 {
 		t.Fatalf("groups = %+v", g)
 	}
 	if g.Today[0].ID != "a#7" {

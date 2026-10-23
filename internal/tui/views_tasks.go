@@ -110,6 +110,7 @@ func (v *tasksView) refresh(a *App) {
 	}
 	add("Today", groups.Today, overdue)
 	add("Upcoming", groups.Upcoming, "")
+	add("No due date", groups.Undated, "")
 	add("Waiting", groups.Waiting, "")
 	add("Done", groups.Done, "")
 	add("Forwarded", groups.Forwarded, "")
@@ -290,7 +291,7 @@ func (v *tasksView) buildColumns(a *App) {
 			}
 		}
 	case "status", "":
-		for _, c := range []struct{ id, title string }{{"today", "Today"}, {"upcoming", "Upcoming"}, {"in-progress", "In progress"}, {"waiting", "Waiting"}, {"done", "Done"}} {
+		for _, c := range []struct{ id, title string }{{"today", "Today"}, {"upcoming", "Upcoming"}, {"undated", "No due date"}, {"in-progress", "In progress"}, {"waiting", "Waiting"}, {"done", "Done"}} {
 			cols = append(cols, kanbanColumn{id: c.id, title: v.columnTitle(a, c.id, c.title)})
 		}
 		today := vault.TodayISO(time.Now())
@@ -306,6 +307,8 @@ func (v *tasksView) buildColumns(a *App) {
 				id = "waiting"
 			case t.InProgress:
 				id = "in-progress"
+			case t.Due == "":
+				id = "undated"
 			case t.Due > today:
 				id = "upcoming"
 			}
@@ -1043,6 +1046,10 @@ func (v *tasksView) moveCard(a *App, t vault.Task, target int) {
 			return
 		}
 	case "status", "":
+		if col.id == "undated" && t.DueInferred {
+			a.notify("This task's date comes from its daily note, so there is no due date to clear")
+			return
+		}
 		a.setTaskStatusColumn(t, col.id)
 	case "folder":
 		a.notify("Folder boards are read-only. Move the source note to change its folder.")
@@ -1305,6 +1312,11 @@ func (a *App) setTaskStatusColumn(t vault.Task, status string) {
 			checked(false)
 			waiting(false)
 			progress(true)
+		case "undated":
+			checked(false)
+			waiting(false)
+			progress(false)
+			due("")
 		case "today", "upcoming":
 			checked(false)
 			waiting(false)
