@@ -397,6 +397,40 @@ func TestGroupTasks(t *testing.T) {
 	}
 }
 
+func TestOrderTaskGroups(t *testing.T) {
+	// The desktop's Order menu above the Tasks list (#989).
+	g := TaskGroups{
+		Today: []Task{
+			{ID: "bank", SourcePath: "a.md", TaskIndex: 0, Priority: "med", Due: "2026-10-23"},
+			{ID: "passport", SourcePath: "a.md", TaskIndex: 1, Priority: "high", Due: "2026-10-20"},
+			{ID: "plants", SourcePath: "b.md", TaskIndex: 0, Due: "2026-10-23"},
+			{ID: "invoice", SourcePath: "b.md", TaskIndex: 1, Priority: "low", Due: "2026-10-23"},
+			{ID: "contract", SourcePath: "c.md", TaskIndex: 0, Priority: "high", Due: "2026-10-23"},
+		},
+		Done: []Task{{ID: "b-done", SourcePath: "b.md", Priority: "low"}, {ID: "a-done", SourcePath: "a.md", Priority: "high"}},
+	}
+	ids := func(tasks []Task) string {
+		out := []string{}
+		for _, t := range tasks {
+			out = append(out, t.ID)
+		}
+		return strings.Join(out, ",")
+	}
+	if got := ids(OrderTaskGroups(g, "note").Today); got != "bank,passport,plants,invoice,contract" {
+		t.Fatalf("note order = %s", got)
+	}
+	byPriority := OrderTaskGroups(g, "priority")
+	if got := ids(byPriority.Today); got != "passport,contract,bank,invoice,plants" {
+		t.Fatalf("priority order = %s", got)
+	}
+	if got := ids(byPriority.Done); got != "a-done,b-done" {
+		t.Fatalf("done keeps line order: %s", got)
+	}
+	if ids(g.Today) != "bank,passport,plants,invoice,contract" {
+		t.Fatalf("OrderTaskGroups must not reorder its input: %s", ids(g.Today))
+	}
+}
+
 func TestUpdateFrontmatterFieldsQuoting(t *testing.T) {
 	got := UpdateFrontmatterFields("body\n", []FrontmatterUpdate{{Key: "Link", Value: StrPtr("[[Note]]")}, {Key: "Plain", Value: StrPtr("hello world")}})
 	if got != "---\nLink: \"[[Note]]\"\nPlain: hello world\n---\nbody\n" {

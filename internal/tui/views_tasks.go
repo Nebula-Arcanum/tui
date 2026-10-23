@@ -88,7 +88,7 @@ func (v *tasksView) setMode(mode string) {
 func (v *tasksView) refresh(a *App) {
 	all := a.displayTasks()
 	v.tasks = filterTaskQuery(all, v.filter)
-	groups := vault.GroupTasks(v.tasks, time.Now())
+	groups := vault.OrderTaskGroups(vault.GroupTasks(v.tasks, time.Now()), a.prefs.TasksListOrder)
 	v.rows = nil
 	add := func(name string, tasks []vault.Task, extra string) {
 		if len(tasks) == 0 {
@@ -775,6 +775,14 @@ func (v *tasksView) handleKey(a *App, k vim.Key) bool {
 		v.boardMenu(a)
 		return true
 	}
+	if k.IsRune('O') && v.mode == "list" && a.listKeyAllowed(k) {
+		next := "priority"
+		if a.prefs.TasksListOrder == "priority" {
+			next = "note"
+		}
+		a.setTasksListOrder(next)
+		return true
+	}
 	if k.IsRune('v') && a.listKeyAllowed(k) {
 		switch v.mode {
 		case "list":
@@ -896,13 +904,18 @@ func (v *tasksView) listKey(a *App, k vim.Key) bool {
 		if t != nil {
 			a.openTaskSource(*t)
 		}
-	case "tasks.moveTaskUp":
-		if t != nil {
-			a.moveTaskWithinNote(*t, -1)
+	case "tasks.moveTaskUp", "tasks.moveTaskDown":
+		// J and K move lines in the note, which the list only shows in note order.
+		if a.prefs.TasksListOrder == "priority" {
+			a.notify("Reordering works in note order. Press O to switch.")
+			return true
 		}
-	case "tasks.moveTaskDown":
 		if t != nil {
-			a.moveTaskWithinNote(*t, 1)
+			dir := 1
+			if id == "tasks.moveTaskUp" {
+				dir = -1
+			}
+			a.moveTaskWithinNote(*t, dir)
 		}
 	case "nav.localEx":
 		a.openLocalEx()
