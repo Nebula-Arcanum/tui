@@ -623,8 +623,25 @@ sheet of your own, or `zen` for the built-in renderer).
   cards; Enter opens them.
 - **`![[Note]]`** renders the note inline.
 - **Mermaid** blocks draw as text through a pure-Go renderer, or as
-  pictures when `mmdc` is installed. **`$$` math** renders through `typst`
-  when it is installed.
+  pictures when `mmdc` is installed.
+- **`[terminal] math`** picks the engine for display math. `typst`, the
+  default, renders `$$` blocks when `typst` is installed. `latex` also renders
+  `\[ \]`, `tikzpicture` and the amsmath display environments (`equation`,
+  `align`, `gather`, `multline` and the rest, starred or not), and needs
+  `pdftex` and `pdftocairo` (poppler) on PATH; `zn doctor` names a missing
+  one. A basic TeX Live is enough: add the packages zn uses with
+  `tlmgr install standalone varwidth preview xcolor amsmath amsfonts mhchem pgf`
+  (or your distribution's TeX packages), and others later as your preamble
+  needs them. Packages come from `preamble.tex` next to
+  `config.toml`, written on the first render with `amsmath`, `amssymb`,
+  `mhchem` and `tikz` (`arrows.meta`, `calc`); zn never rewrites it. Pictures
+  are cached in the user cache directory under `zn/tex`, which zn does not
+  prune. TeX can read files by absolute path, so under `latex` a note can show
+  in the preview the contents of any file you can read. Leave latex off for
+  vaults you do not trust.
+- **`render_timeout`** (seconds, default 10) bounds one diagram or math
+  render; **`render_concurrency`** (default 2) caps how many run at once and
+  takes effect after a restart.
 
 ### Vaults and servers inside the app
 
@@ -719,7 +736,7 @@ layout choices do not change these terminal layouts.
 | `[view]` | `tasks_view_mode`, `kanban_group_by`, `kanban_statuses`, `note_sort_order` |
 | `[appearance]` | `theme_family`, `theme_mode`, `theme_id` |
 | `[tweaks]` | `accent = "#ff3b30"`: the desktop's Quick tweaks colors |
-| `[terminal]` | `mouse`, `preview_style`, `images`, `theme` (terminal only) |
+| `[terminal]` | `mouse`, `preview_style`, `images`, `theme`, `math`, `render_timeout`, `render_concurrency` (terminal only) |
 | `[keymaps]` | `"action.id" = "keys"`, or `""` to unbind; `:keymaps` lists the ids |
 | `[kanban_column_titles]` | `review = "In Review"` |
 | `[saved_filters]` | `Important = "!high"` |
