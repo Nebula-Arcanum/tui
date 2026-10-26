@@ -77,6 +77,13 @@ type Prefs struct {
 	// TerminalTheme names a theme for zn alone: a family, a theme id or a
 	// custom theme. Empty follows the desktop's [appearance] selection.
 	TerminalTheme string
+	// TerminalMath is typst or latex: the engine for display math. Anything
+	// else loads as typst; zn doctor reports it.
+	TerminalMath string
+	// RenderTimeout (seconds) bounds one external render; RenderConcurrency
+	// caps how many run at once. Non-positive values load as the defaults.
+	RenderTimeout     int
+	RenderConcurrency int
 }
 
 // DefaultPrefs are the shipped defaults.
@@ -107,6 +114,9 @@ func DefaultPrefs() Prefs {
 		ThemeTweaks:              map[string]string{},
 		PreviewStyle:             "auto",
 		TerminalMouse:            true,
+		TerminalMath:             "typst",
+		RenderTimeout:            10,
+		RenderConcurrency:        2,
 		UnifiedSidebar:           true,
 		NoteSortOrder:            "none",
 		GroupByKind:              true,
@@ -141,7 +151,7 @@ func LoadPrefs() (Prefs, string, error) {
 	if _, err := toml.Decode(string(raw), &doc); err != nil {
 		return prefs, path, err
 	}
-	if err := validateKnownValues(doc); err != nil {
+	if err := validateKnownValues(doc, false); err != nil {
 		return prefs, path, err
 	}
 	applyPrefs(&prefs, doc)
@@ -225,8 +235,22 @@ func applyPrefs(p *Prefs, doc map[string]any) {
 	setString(terminal, "preview_style", &p.PreviewStyle)
 	setString(terminal, "images", &p.TerminalImages)
 	setString(terminal, "theme", &p.TerminalTheme)
+	setString(terminal, "math", &p.TerminalMath)
+	setInt(terminal, "render_timeout", &p.RenderTimeout)
+	setInt(terminal, "render_concurrency", &p.RenderConcurrency)
 	if strings.TrimSpace(p.PreviewStyle) == "" {
 		p.PreviewStyle = "auto"
+	}
+	if strings.EqualFold(strings.TrimSpace(p.TerminalMath), "latex") {
+		p.TerminalMath = "latex"
+	} else {
+		p.TerminalMath = "typst"
+	}
+	if p.RenderTimeout <= 0 {
+		p.RenderTimeout = 10
+	}
+	if p.RenderConcurrency <= 0 {
+		p.RenderConcurrency = 2
 	}
 
 	p.KeymapOverrides = mergeStringTable(p.KeymapOverrides, section("keymaps"))
@@ -343,6 +367,13 @@ mouse = true
 # A theme for zn alone: a family, a theme id or a custom theme. Empty follows
 # [appearance], so the terminal matches the desktop app.
 theme = ""
+# math = typst | latex: the engine for display math in the preview. latex
+# needs pdftex (TeX Live or MacTeX) and pdftocairo (poppler) on PATH, and
+# reads its packages from preamble.tex next to this file.
+math = "typst"
+# Seconds one diagram or math render may take, and how many run at once.
+render_timeout = 10
+render_concurrency = 2
 
 [keymaps]
 # "action.id" = "keys"   (an empty string unbinds an action)
