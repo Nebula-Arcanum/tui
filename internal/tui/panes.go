@@ -217,6 +217,7 @@ func abs(n int) int {
 
 // openNote shows a note in the active pane, reusing its tab when open.
 func (a *App) openNote(path string, focus bool) {
+	a.forgetEmbedTimeouts()
 	pane := a.activePane
 	if pane == nil {
 		return
