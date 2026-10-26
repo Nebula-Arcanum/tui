@@ -29,7 +29,7 @@ func inMarkdownFence(lines []string, line int) bool {
 	return fence != ""
 }
 
-var blockSnippetRe = regexp.MustCompile("^([\\t ]*(?:(?:[-+*]|[0-9]+[.)])[\\t ]+|>[\\t ]?)*)((?:`{3,}|~{3,}).*|\\$\\$)$")
+var blockSnippetRe = regexp.MustCompile("^([\\t ]*(?:(?:[-+*]|[0-9]+[.)])[\\t ]+|>[\\t ]?)*)((?:`{3,}|~{3,}).*|\\$\\$|\\\\\\[|\\\\begin\\{[^{}]+\\})$")
 
 func (a *App) markdownSnippet(buf *noteBuffer, k vim.Key) bool {
 	if !a.prefs.MarkdownSnippets || buf.ed.Mode() != vim.ModeInsert {
@@ -45,11 +45,21 @@ func (a *App) markdownSnippet(buf *noteBuffer, k vim.Key) bool {
 	if inMarkdownFence(buf.ed.Lines(), cur.Line) {
 		return false
 	}
-	if k.Is("enter") && cur.Col == len(r) {
-		m := blockSnippetRe.FindStringSubmatch(line)
+	// Typing \[ auto-pairs to \[] with the cursor before the ]; under latex
+	// that is still the opener, and the stray ] goes.
+	paired := a.prefs.TerminalMath == "latex" && after == "]" && strings.HasSuffix(before, `\[`)
+	if k.Is("enter") && (cur.Col == len(r) || paired) {
+		m := blockSnippetRe.FindStringSubmatch(before)
+		if m != nil && strings.HasPrefix(m[2], "\\") && a.prefs.TerminalMath != "latex" {
+			m = nil
+		}
 		if m != nil {
 			token := "$$"
-			if strings.HasPrefix(m[2], "`") {
+			if m[2] == `\[` {
+				token = `\]`
+			} else if strings.HasPrefix(m[2], `\begin{`) {
+				token = `\end` + strings.TrimPrefix(m[2], `\begin`)
+			} else if strings.HasPrefix(m[2], "`") {
 				token = strings.Repeat("`", len(m[2])-len(strings.TrimLeft(m[2], "`")))
 			} else if strings.HasPrefix(m[2], "~") {
 				token = strings.Repeat("~", len(m[2])-len(strings.TrimLeft(m[2], "~")))
@@ -63,7 +73,11 @@ func (a *App) markdownSnippet(buf *noteBuffer, k vim.Key) bool {
 			if cur.Line+1 < buf.ed.LineCount() && strings.TrimSpace(buf.ed.Line(cur.Line+1)) == token {
 				return false
 			}
-			buf.ed.InsertAtCursor("\n" + indent + "\n" + indent + token)
+			if paired {
+				buf.ed.ReplaceAtCursor(0, 1, "\n"+indent+"\n"+indent+token)
+			} else {
+				buf.ed.InsertAtCursor("\n" + indent + "\n" + indent + token)
+			}
 			buf.ed.SetCursor(vim.Pos{Line: cur.Line + 1, Col: len([]rune(indent))})
 			return true
 		}

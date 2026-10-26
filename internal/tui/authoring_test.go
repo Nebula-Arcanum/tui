@@ -93,3 +93,99 @@ func TestTypedBacktickFenceClosesOnEnter(t *testing.T) {
 		t.Fatalf("cursor should sit inside the block: %v", got)
 	}
 }
+
+// typeLineAndEnter puts line in the note, moves to its end in insert mode
+// and presses Enter through the App, as a user typing it would.
+func typeLineAndEnter(t *testing.T, math, line string) *noteBuffer {
+	t.Helper()
+	a, _ := newFeatureTestApp(t)
+	a.prefs.TerminalMath = math
+	a.openNote("note.md", true)
+	buf := a.activeBuffer()
+	buf.ed.ReplaceText(line)
+	buf.ed.HandleKey(vim.R('A'))
+	a.handleKey(vim.Key{Name: "enter"})
+	return buf
+}
+
+func assertSnippet(t *testing.T, buf *noteBuffer, want string) {
+	t.Helper()
+	if got := buf.ed.Text(); got != want {
+		t.Fatalf("text = %q, want %q", got, want)
+	}
+	if cur := buf.ed.Cursor(); cur.Line != 1 || cur.Col != 0 {
+		t.Fatalf("cursor = %+v, want line 1 col 0 (between opener and closer)", cur)
+	}
+}
+
+// AC60
+func TestSnippetBracketClosesUnderLatex(t *testing.T) {
+	assertSnippet(t, typeLineAndEnter(t, "latex", `\[`), "\\[\n\n\\]")
+}
+
+// AC60 as typed: auto-pairing leaves \[] with the cursor before the ],
+// and Enter must still give \[ … \] instead of a stray ].
+func TestTypedBracketClosesOnEnterUnderLatex(t *testing.T) {
+	for _, typed := range []string{`\[`, `\begin{align}`} {
+		t.Run(typed, func(t *testing.T) {
+			a, buf := newTagTestApp(t, vimPrefs(), "# Draft")
+			a.prefs.TerminalMath = "latex"
+			feed(a, vim.R('o'))
+			typeKeys(a, typed)
+			feed(a, vim.KeyEnter)
+			closer := `\]`
+			if typed != `\[` {
+				closer = `\end{align}`
+			}
+			if got, want := buf.ed.Text(), "# Draft\n"+typed+"\n\n"+closer; got != want {
+				t.Fatalf("typed %q + Enter: %q, want %q", typed, got, want)
+			}
+			if got := buf.ed.Cursor(); got != (vim.Pos{Line: 2, Col: 0}) {
+				t.Fatalf("cursor should sit inside the block: %v", got)
+			}
+		})
+	}
+}
+
+// AC61
+func TestSnippetBeginClosesAnyEnvironment(t *testing.T) {
+	for _, env := range []string{"align", "foo*"} {
+		t.Run(env, func(t *testing.T) {
+			buf := typeLineAndEnter(t, "latex", `\begin{`+env+`}`)
+			assertSnippet(t, buf, `\begin{`+env+"}\n\n"+`\end{`+env+`}`)
+		})
+	}
+}
+
+// AC62
+func TestSnippetDollarUnchangedUnderLatex(t *testing.T) {
+	assertSnippet(t, typeLineAndEnter(t, "latex", "$$"), "$$\n\n$$")
+}
+
+// AC63
+func TestSnippetTypstUnchangedAndNoBracket(t *testing.T) {
+	assertSnippet(t, typeLineAndEnter(t, "typst", "$$"), "$$\n\n$$")
+	for _, line := range []string{`\[`, `\begin{align}`} {
+		buf := typeLineAndEnter(t, "typst", line)
+		if got := buf.ed.Text(); strings.Contains(got, `\]`) || strings.Contains(got, `\end{`) {
+			t.Fatalf("typst %q + Enter inserted a closer: %q", line, got)
+		}
+	}
+}
+
+// AC60/AC61: a closer that already follows is not added a second time.
+func TestSnippetLatexSkipsExistingCloser(t *testing.T) {
+	for _, body := range []string{"\\[\n\\]", "\\begin{align}\n\\end{align}"} {
+		a, _ := newFeatureTestApp(t)
+		a.prefs.TerminalMath = "latex"
+		a.openNote("note.md", true)
+		buf := a.activeBuffer()
+		buf.ed.ReplaceText(body)
+		buf.ed.SetCursor(vim.Pos{Line: 0, Col: 0})
+		buf.ed.HandleKey(vim.R('A'))
+		a.handleKey(vim.Key{Name: "enter"})
+		if got := buf.ed.Text(); strings.Count(got, `\]`)+strings.Count(got, `\end{`) != 1 {
+			t.Fatalf("%q + Enter duplicated the closer: %q", body, got)
+		}
+	}
+}
