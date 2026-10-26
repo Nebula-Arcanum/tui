@@ -9,15 +9,54 @@ import (
 
 // ResolveInstructions is the effective system instruction: the user's
 // override from `<userData>/zennotes.mcp-instructions.md` (written by
-// Settings → MCP in the desktop app) when present, the compiled default
-// otherwise.
+// Settings → MCP in the desktop app) when present, else the compiled
+// default for the `[terminal] math` engine: latexInstructions under latex,
+// DefaultInstructions otherwise (also when config.toml cannot be read).
+// Run calls it once, so a config change takes effect on the next start.
 func ResolveInstructions() string {
 	raw, err := os.ReadFile(config.MCPInstructionsPath())
 	if err == nil && strings.TrimSpace(string(raw)) != "" {
 		return string(raw)
 	}
+	if prefs, _, err := config.LoadPrefs(); err == nil && prefs.TerminalMath == "latex" {
+		return latexInstructions
+	}
 	return DefaultInstructions
 }
+
+// latexReplacements turns DefaultInstructions into the latex variant: the
+// zn preview renders a bare tikzpicture block with the user's preamble.tex,
+// so TikZ is asked for unfenced and without its own \usetikzlibrary line.
+// Old/new pairs. TestLatexReplacementsAllApply fails when an old string no
+// longer occurs exactly once in DefaultInstructions.
+var latexReplacements = []string{
+	"emit a ```tikz (or\n",
+	"emit a bare `tikzpicture` block (or a\n",
+
+	"- ```tikz: vectors,",
+	"- bare `\\begin{tikzpicture}` block: vectors,",
+
+	"- `tikz`: emit the TikZ content itself, usually a bare\n" +
+		"  `\\begin{tikzpicture} \u2026 \\end{tikzpicture}` block. If you need\n" +
+		"  extra libraries or packages, add `\\usetikzlibrary{\u2026}` /\n" +
+		"  `\\usepackage{\u2026}` above it. Never emit `\\documentclass`.\n",
+	"- TikZ: no fence. Put a `\\begin{tikzpicture} \u2026 \\end{tikzpicture}`\n" +
+		"  block on lines of its own. Libraries and packages come from the\n" +
+		"  user's `preamble.tex`, whose default loads amsmath, amssymb, mhchem,\n" +
+		"  tikz and the TikZ libraries arrows.meta,calc. Never emit\n" +
+		"  `\\documentclass`, `\\usepackage` or `\\usetikzlibrary`.\n",
+
+	"convert to ```tikz.\n",
+	"convert to a bare `tikzpicture` block.\n",
+
+	"```tikz\n\\usetikzlibrary{arrows.meta,calc}\n\\begin{tikzpicture}",
+	"\\begin{tikzpicture}",
+
+	"\\end{tikzpicture}\n```\n",
+	"\\end{tikzpicture}\n",
+}
+
+var latexInstructions = strings.NewReplacer(latexReplacements...).Replace(DefaultInstructions)
 
 // DefaultInstructions is a verbatim copy of the desktop MCP server's
 // instructions (apps/desktop/src/mcp/instructions.ts), so an agent behaves
