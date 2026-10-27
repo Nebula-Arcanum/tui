@@ -307,40 +307,37 @@ func TestRealPNGHasTransparentBackground(t *testing.T) { // AC39
 
 // instructionsTikz cuts the first bare tikzpicture out of the MCP
 // instructions.
+// instructionsTikz is the ```tikz example fence of the MCP instructions,
+// fence lines included: what an agent writes into a note.
 func instructionsTikz(t *testing.T) []string {
 	t.Helper()
 	out := []string{}
 	for _, l := range strings.Split(mcp.DefaultInstructions, "\n") {
-		if len(out) == 0 && !strings.HasPrefix(l, "\\begin{tikzpicture}") {
+		if len(out) == 0 && l != "```tikz" {
 			continue
 		}
 		out = append(out, l)
-		if strings.HasPrefix(l, "\\end{tikzpicture}") {
+		if len(out) > 1 && l == "```" {
 			return out
 		}
 	}
-	t.Fatalf("no \\begin{tikzpicture} … \\end{tikzpicture} lines in mcp.DefaultInstructions")
+	t.Fatalf("no ```tikz example fence in mcp.DefaultInstructions")
 	return nil
 }
 
-func TestRealInstructionsTikzExampleRenders(t *testing.T) { // AC74
+func TestRealInstructionsTikzExampleRenders(t *testing.T) {
 	realTeXEnv(t)
 	tikz := instructionsTikz(t)
-	for _, l := range tikz {
-		if strings.Contains(l, "usetikzlibrary") {
-			t.Fatalf("cut lines load a library themselves: %q", l)
-		}
-	}
 	lines := append(append([]string{"A vector:", ""}, tikz...), "", "done.")
 	var blk *mdBlock
 	for _, b := range splitBlocks(lines, true) {
-		if b.kind == "tex" {
+		if b.kind == "fence" {
 			b := b
 			blk = &b
 		}
 	}
 	if blk == nil {
-		t.Fatalf("the bare tikzpicture is not a tex block: %+v", splitBlocks(lines, true))
+		t.Fatalf("the ```tikz example is not a fence block: %+v", splitBlocks(lines, true))
 	}
 	a, done := realMathApp(t)
 	out := showBlock(a, done, lines, *blk)
@@ -399,5 +396,16 @@ func TestRealWideBlocksAreNotClipped(t *testing.T) {
 				t.Fatalf("PNG is %d px wide, want at least %d: the block was clipped at the page edge", w, tc.minW)
 			}
 		})
+	}
+}
+
+func TestRealDesktopTikzFenceRenders(t *testing.T) {
+	realTeXEnv(t)
+	// right=of needs positioning, which the default preamble loads as the
+	// desktop does; the \usepackage line above the picture is preamble.
+	src := "\\usepackage{amssymb}\n\\begin{tikzpicture}\n\\node (a) {$\\mathbb{R}$};\n\\node[right=of a] (b) {B};\n\\draw[-Stealth] (a) -- (b);\n\\end{tikzpicture}"
+	img := newLatexApp(t, 0).renderEmbed(contentKey("math", "tikz\x00"+src), renderReq{kind: "tikz", src: src, dark: true, maxCols: 80, timeout: realTimeout})
+	if failed(img) {
+		t.Fatalf("a desktop-style ```tikz fence does not render: %v", imgErr(img))
 	}
 }

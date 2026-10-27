@@ -401,8 +401,10 @@ func TestEnsurePreambleWritesDefaultPackages(t *testing.T) { // AC16
 			t.Errorf("preamble.tex does not load %s:\n%s", pkg, pre)
 		}
 	}
-	if !strings.Contains(pre, `\usetikzlibrary{arrows.meta,calc}`) {
-		t.Errorf("preamble.tex lacks \\usetikzlibrary{arrows.meta,calc}:\n%s", pre)
+	// The desktop's TikZ renderer loads these libraries for every fence, so a
+	// fence written there draws here without a \usetikzlibrary line.
+	if !strings.Contains(pre, `\usetikzlibrary{arrows.meta,calc,positioning,shapes,decorations.pathreplacing,intersections,patterns}`) {
+		t.Errorf("preamble.tex does not load the desktop's TikZ libraries:\n%s", pre)
 	}
 }
 
@@ -1302,5 +1304,33 @@ func TestFittingBlockRendersOnce(t *testing.T) {
 	}
 	if r := renderCalls(calls()); len(r) != 1 {
 		t.Fatalf("pdftex rendered %d times for a block that fits, want 1", len(r))
+	}
+}
+
+func TestTikzDocumentNormalisesLikeTheDesktop(t *testing.T) {
+	const fg = "#EBDBB2"
+	body := texBody
+	for _, tc := range []struct{ name, src, want string }{
+		{
+			"library line stays in the preamble",
+			"\\usetikzlibrary{positioning}\n\\begin{tikzpicture}\n\\node (a) {A};\n\\end{tikzpicture}",
+			"\\usetikzlibrary{positioning}\n" + body("\\begin{tikzpicture}\n\\node (a) {A};\n\\end{tikzpicture}", fg),
+		},
+		{
+			"documentclass goes, a full document keeps its preamble",
+			"\\documentclass[tikz]{standalone}\n\\usepackage{amsmath}\n\\begin{document}\n\\tikz \\draw (0,0) -- (1,1);\n\\end{document}",
+			"\\usepackage{amsmath}\n" + body("\\tikz \\draw (0,0) -- (1,1);", fg),
+		},
+		{
+			"bare commands are all body",
+			"\\draw (0,0) -- (1,1);",
+			body("\\draw (0,0) -- (1,1);", fg),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tikzDocument(tc.src, fg); got != tc.want {
+				t.Fatalf("tikzDocument:\n%s\nwant:\n%s", got, tc.want)
+			}
+		})
 	}
 }

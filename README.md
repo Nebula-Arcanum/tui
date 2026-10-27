@@ -627,14 +627,20 @@ sheet of your own, or `zen` for the built-in renderer).
 - **`[terminal] math`** picks the engine for display math. `typst`, the
   default, renders `$$` blocks when `typst` is installed. `latex` also renders
   `\[ \]`, `tikzpicture` and the amsmath display environments (`equation`,
-  `align`, `gather`, `multline` and the rest, starred or not), and needs
+  `align`, `gather`, `multline` and the rest, starred or not), and
+  ` ```tikz ` fences the way the desktop app draws them (`\usepackage` and
+  `\usetikzlibrary` lines above the picture are kept). It needs
   `pdftex` and `pdftocairo` (poppler) on PATH; `zn doctor` names a missing
   one. A basic TeX Live is enough: add the packages zn uses with
   `tlmgr install standalone varwidth preview xcolor amsmath amsfonts mhchem pgf`
   (or your distribution's TeX packages), and others later as your preamble
   needs them. Packages come from `preamble.tex` next to
   `config.toml`, written on the first render with `amsmath`, `amssymb`,
-  `mhchem` and `tikz` (`arrows.meta`, `calc`); zn never rewrites it. Pictures
+  `mhchem` and `tikz` with the TikZ libraries the desktop loads (`arrows.meta`,
+  `calc`, `positioning`, `shapes`, `decorations.pathreplacing`,
+  `intersections`, `patterns`); zn never rewrites it. The desktop also loads
+  `pgfplots` and `circuitikz` when a fence uses them; for those, install them
+  and add them to `preamble.tex`. Pictures
   are cached in the user cache directory under `zn/tex`, which zn does not
   prune. TeX can read files by absolute path, so under `latex` a note can show
   in the preview the contents of any file you can read. Leave latex off for

@@ -1324,28 +1324,29 @@ func TestSplitBlocksTypstLeavesLatexAsText(t *testing.T) { // AC11
 	}
 }
 
-func TestTikzFenceStaysCodeBlock(t *testing.T) { // AC12
+// Under latex a ```tikz fence renders through pdftex instead, as on the
+// desktop (TestTikzFenceRendersThroughLatex); it is a fence block either way.
+func TestTikzFenceStaysCodeBlockUnderTypst(t *testing.T) { // AC12
 	note := "Before.\n\n```tikz\n\\begin{tikzpicture}\n\\draw (0,0) -- (1,1);\n\\end{tikzpicture}\n```\n\nAfter."
-	for _, engine := range []string{"typst", "latex"} {
-		t.Run(engine, func(t *testing.T) {
-			if got, want := strings.Join(blockKinds(note, engine == "latex"), " "), "para[0,1) blank[1,2) fence[2,7) blank[7,8) para[8,9)"; got != want {
-				t.Fatalf("blocks %q, want %q", got, want)
-			}
-			latexEnv(t)
-			addTool(t, "typst")
-			calls := fakeTeX(t, texFake{})
-			typst := fakeTypst(t)
-			a, done := newNoteApp(t, engine, "kitty")
-			lines := showNote(a, done, note, 300*time.Millisecond)
-			if n := typst(); n != 0 || len(calls()) != 0 {
-				t.Fatalf("tikz fence was rendered: typst %d, tex %+v", n, calls())
-			}
-			if isPicture(lines) || !strings.Contains(joinPreview(lines), "\\draw (0,0) -- (1,1);") {
-				t.Fatalf("tikz fence is not shown as a code block: %s", joinPreview(lines))
-			}
-			sameLines(t, lines, beforeChange(t, note))
-		})
+	if got, want := strings.Join(blockKinds(note, true), " "), "para[0,1) blank[1,2) fence[2,7) blank[7,8) para[8,9)"; got != want {
+		t.Fatalf("latex blocks %q, want %q", got, want)
 	}
+	if got, want := strings.Join(blockKinds(note, false), " "), "para[0,1) blank[1,2) fence[2,7) blank[7,8) para[8,9)"; got != want {
+		t.Fatalf("typst blocks %q, want %q", got, want)
+	}
+	latexEnv(t)
+	addTool(t, "typst")
+	calls := fakeTeX(t, texFake{})
+	typst := fakeTypst(t)
+	a, done := newNoteApp(t, "typst", "kitty")
+	lines := showNote(a, done, note, 300*time.Millisecond)
+	if n := typst(); n != 0 || len(calls()) != 0 {
+		t.Fatalf("tikz fence was rendered: typst %d, tex %+v", n, calls())
+	}
+	if isPicture(lines) || !strings.Contains(joinPreview(lines), "\\draw (0,0) -- (1,1);") {
+		t.Fatalf("tikz fence is not shown as a code block: %s", joinPreview(lines))
+	}
+	sameLines(t, lines, beforeChange(t, note))
 }
 
 func TestInlineMathUnchangedUnderLatex(t *testing.T) { // AC13
@@ -1361,4 +1362,57 @@ func TestInlineMathUnchangedUnderLatex(t *testing.T) { // AC13
 		t.Fatalf("inline math was rendered: %+v", got)
 	}
 	sameLines(t, lines, beforeChange(t, note))
+}
+
+func tikzFence() ([]string, mdBlock) {
+	lines := []string{"```tikz", "\\begin{tikzpicture}", "\\draw (0,0) -- (1,1);", "\\end{tikzpicture}", "```"}
+	return lines, mdBlock{kind: "fence", start: 0, end: len(lines)}
+}
+
+func TestTikzFenceRendersThroughLatex(t *testing.T) {
+	latexEnv(t)
+	calls := fakeTeX(t, texFake{})
+	a, done := newMathApp(t, mathPrefs("latex", "kitty"))
+	lines, b := tikzFence()
+	if _, ok := a.embedBlockLines(b, lines, 80, ""); ok {
+		t.Fatal("the fence is a picture before its render finished")
+	}
+	if !nextRender(done, 5*time.Second) {
+		t.Fatalf("no render finished; calls %+v", calls())
+	}
+	out, ok := a.embedBlockLines(b, lines, 80, "")
+	if !ok || !isPicture(out) {
+		t.Fatalf("the ```tikz fence is not a picture under latex:\n%s", joinPreview(out))
+	}
+	doc := renderInput(t, calls())
+	if !strings.Contains(doc, "\\begin{document}") || !strings.Contains(doc, "\\draw (0,0) -- (1,1);") || strings.Contains(doc, "```") {
+		t.Fatalf("pdftex did not get the fence body as a document:\n%s", doc)
+	}
+}
+
+func TestFailedTikzFenceShowsTheErrorAboveTheCode(t *testing.T) {
+	latexEnv(t)
+	fakeTeX(t, texFake{render: func(ctx context.Context, base string) ([]byte, error) {
+		_ = os.WriteFile(base+".log", []byte("! Undefined control sequence.\n"), 0o644)
+		return []byte("! Undefined control sequence."), errors.New("exit status 1")
+	}})
+	a, _ := newDatabaseTestApp(t)
+	a.prefs = prefsView{Prefs: mathPrefs("latex", "kitty")}
+	a.imageStore = &imageStore{byKey: map[string]*termImage{}, nextID: 1000, cellW: 10, cellH: 20, out: io.Discard}
+	done := watchRenders(t, a)
+	body := strings.Join(func() []string { l, _ := tikzFence(); return l }(), "\n")
+	if _, err := a.renderGlamourLinesFrom(body, 80, "Doc.md"); err != nil {
+		t.Fatal(err)
+	}
+	if !nextRender(done, 5*time.Second) {
+		t.Fatal("no render finished")
+	}
+	out, err := a.renderGlamourLinesFrom(body, 80, "Doc.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	errRow, codeRow := rowIndex(out, "latex: ! Undefined control sequence."), rowIndex(out, "\\draw (0,0)")
+	if errRow < 0 || codeRow < 0 || errRow > codeRow {
+		t.Fatalf("want the TeX error above the fence's code (error row %d, code row %d):\n%s", errRow, codeRow, joinPreview(out))
+	}
 }

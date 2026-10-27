@@ -403,8 +403,9 @@ func (a *App) renderGlamourLinesFrom(text string, width int, fromPath string) ([
 	lines := strings.Split(text, "\n")
 	out := []previewLine{}
 	for _, b := range splitBlocks(lines, a.prefs.TerminalMath == "latex") {
-		if embedded, ok := a.embedBlockLines(b, lines, width, fromPath); ok {
-			out = append(out, embedded...)
+		embedded, ok := a.embedBlockLines(b, lines, width, fromPath)
+		out = append(out, embedded...)
+		if ok {
 			continue
 		}
 		switch b.kind {

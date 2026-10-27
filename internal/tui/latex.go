@@ -28,7 +28,7 @@ const defaultPreamble = `% zn LaTeX preamble: loaded before every display-math b
 \usepackage{amssymb}
 \usepackage[version=4]{mhchem}
 \usepackage{tikz}
-\usetikzlibrary{arrows.meta,calc}
+\usetikzlibrary{arrows.meta,calc,positioning,shapes,decorations.pathreplacing,intersections,patterns}
 `
 
 // formatWrapper goes around preamble.tex in the precompiled format. The
@@ -103,11 +103,60 @@ func latexDocument(src, fg string) string {
 	if len(body) >= 4 && strings.HasPrefix(body, "$$") && strings.HasSuffix(body, "$$") {
 		body = "\\[\n" + strings.TrimSpace(body[2:len(body)-2]) + "\n\\]"
 	}
+	return texBody(body, fg)
+}
+
+// tikzDocument is the per-render source for a ```tikz fence, normalised the
+// way the desktop's TikZ renderer does it (wrapSource in
+// apps/desktop/src/main/tikz.ts), so a fence draws the same in both: a
+// \documentclass line goes, and the \usepackage and \usetikzlibrary lines
+// above the picture stay ahead of \begin{document}, where the format is
+// still in the preamble and \usepackage is allowed.
+func tikzDocument(src, fg string) string {
+	s := strings.TrimSpace(docClassLineRe.ReplaceAllString(strings.TrimSpace(src), ""))
+	begin, end := strings.Index(s, `\begin{document}`), strings.LastIndex(s, `\end{document}`)
+	if begin >= 0 && end > begin {
+		return strings.TrimSpace(s[:begin]) + "\n" + texBody(strings.TrimSpace(s[begin+len(`\begin{document}`):end]), fg)
+	}
+	s = strings.TrimSpace(strings.NewReplacer(`\begin{document}`, "", `\end{document}`, "").Replace(s))
+	if loc := tikzBodyStartRe.FindStringIndex(s); loc != nil && loc[0] > 0 {
+		return strings.TrimSpace(s[:loc[0]]) + "\n" + texBody(strings.TrimSpace(s[loc[0]:]), fg)
+	}
+	return texBody(s, fg)
+}
+
+var (
+	docClassLineRe = regexp.MustCompile(`(?m)^\s*\\documentclass(?:\[[^\]]*\])?\{[^}]+\}\s*$`)
+	// tikzBodyStartRe finds where a fence's drawing starts, as the desktop
+	// does; whatever comes before it is preamble.
+	tikzBodyStartRe = regexp.MustCompile(`\\begin\{[^}]+\}|\\(?:tikz|draw|path|node|coordinate|matrix|graph)\b`)
+)
+
+// texBody wraps a block's body in the document, in the theme's text colour.
+func texBody(body, fg string) string {
 	colour := ""
 	if m := hexColour.FindStringSubmatch(fg); m != nil {
 		colour = "\\color[HTML]{" + strings.ToUpper(m[1]) + "}"
 	}
 	return "\\begin{document}" + colour + "\n" + body + "\n\\end{document}\n"
+}
+
+// texSource is the document a latex render compiles: display math, or a
+// ```tikz fence under kind "tikz".
+func texSource(kind, src, fg string) string {
+	if kind == "tikz" {
+		return tikzDocument(src, fg)
+	}
+	return latexDocument(src, fg)
+}
+
+// latexKeySrc is the source part of a block's key. A ```tikz fence is keyed
+// apart from display math, since the two are compiled differently.
+func latexKeySrc(kind, src string) string {
+	if kind == "tikz" {
+		return "tikz\x00" + src
+	}
+	return src
 }
 
 // latexDir is <UserCacheDir>/zn/tex: formats and, later, PNGs.
@@ -309,10 +358,11 @@ func cropToInk(data []byte, border int) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// latexPNG renders one block to PNG bytes with the format built from
-// preamble.tex. The PNG is cached on disk in <UserCacheDir>/zn/tex, named
-// by colour, format and source, so a later session runs no tools for it.
-func latexPNG(ctx context.Context, formats *latexFormats, src, fg string) ([]byte, error) {
+// latexPNG renders one block (kind "latex" for display math, "tikz" for a
+// ```tikz fence) to PNG bytes with the format built from preamble.tex. The
+// PNG is cached on disk in <UserCacheDir>/zn/tex, named by colour, format
+// and source, so a later session runs no tools for it.
+func latexPNG(ctx context.Context, formats *latexFormats, kind, src, fg string) ([]byte, error) {
 	preamble, err := ensurePreamble()
 	if err != nil {
 		return nil, err
@@ -323,7 +373,7 @@ func latexPNG(ctx context.Context, formats *latexFormats, src, fg string) ([]byt
 	}
 	fmtSrc := formatWrapper + string(preamble)
 	name := latexFormatName(preamble)
-	cached := filepath.Join(texDir, strings.TrimPrefix(latexKey(fg, name, src), "math:")+".png")
+	cached := filepath.Join(texDir, strings.TrimPrefix(latexKey(fg, name, latexKeySrc(kind, src)), "math:")+".png")
 	if b, err := os.ReadFile(cached); err == nil {
 		return b, nil
 	}
@@ -335,7 +385,7 @@ func latexPNG(ctx context.Context, formats *latexFormats, src, fg string) ([]byt
 		return nil, err
 	}
 	defer os.RemoveAll(dir)
-	if err := os.WriteFile(filepath.Join(dir, "m.tex"), []byte(latexDocument(src, fg)), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "m.tex"), []byte(texSource(kind, src, fg)), 0o644); err != nil {
 		return nil, err
 	}
 	args := append([]string{"-fmt=" + name}, texSandbox...)
@@ -350,7 +400,7 @@ func latexPNG(ctx context.Context, formats *latexFormats, src, fg string) ([]byt
 	// still sit where they would in a document.
 	if log, err := os.ReadFile(filepath.Join(dir, "m.log")); err == nil {
 		if over := overfullBy(log); over > 0 {
-			if err := os.WriteFile(filepath.Join(dir, "m.tex"), []byte(widerPage(over)+latexDocument(src, fg)), 0o644); err != nil {
+			if err := os.WriteFile(filepath.Join(dir, "m.tex"), []byte(widerPage(over)+texSource(kind, src, fg)), 0o644); err != nil {
 				return nil, err
 			}
 			if out, err := runTool(ctx, dir, texEnv(texDir), "pdftex", args...); err != nil {

@@ -157,13 +157,17 @@ func (a *App) assetIndex() map[string]string {
 }
 
 // embedBlockLines renders a block when it is an embed of some kind; ok is
-// false for ordinary Markdown, which Glamour then renders.
+// false for ordinary Markdown, which Glamour then renders below any rows
+// returned anyway (a ```tikz fence's TeX error).
 func (a *App) embedBlockLines(b mdBlock, lines []string, width int, fromPath string) ([]previewLine, bool) {
 	switch b.kind {
 	case "fence":
 		lang := fenceLang(lines[b.start])
 		if lang == "mermaid" && b.end-b.start > 2 {
 			return a.mermaidLines(strings.Join(lines[b.start+1:b.end-1], "\n"), b.start, width), true
+		}
+		if lang == "tikz" && a.prefs.TerminalMath == "latex" && b.end-b.start > 2 {
+			return a.tikzLines(strings.Join(lines[b.start+1:b.end-1], "\n"), b.start, width)
 		}
 		return nil, false
 	case "math", "tex":
@@ -446,12 +450,7 @@ func (a *App) mathLines(body string, srcLine, width int) []previewLine {
 		if a.prefs.TerminalMath == "latex" {
 			src := strings.TrimSpace(body)
 			img = a.externalImage(latexKey(string(th.Fg), currentLatexFormat(), src), width-2, "latex", src)
-			if img != nil && img.err != nil && !errors.Is(img.err, exec.ErrNotFound) {
-				// Wrapped, not truncated: the cause sits at the end of long paths.
-				for _, row := range wrapCommentText(firstLine(img.err.Error()), width-2) {
-					out = append(out, previewLine{text: " " + th.StatusError.Render(row), srcLine: srcLine})
-				}
-			}
+			out = append(out, a.latexErrorRows(img, srcLine, width)...)
 		} else {
 			img = a.externalImage(contentKey("math", fmt.Sprintf("typst\x00%t\x00%s", th.Dark, inner)), width-2, "math", inner)
 		}
@@ -461,6 +460,34 @@ func (a *App) mathLines(body string, srcLine, width int) []previewLine {
 	}
 	for _, l := range strings.Split(inner, "\n") {
 		out = append(out, previewLine{text: " " + th.BorderFocus.Render("▎") + " " + th.Code.Render(truncateCells(l, width-4)), srcLine: srcLine})
+	}
+	return out
+}
+
+// tikzLines renders a ```tikz fence through LaTeX under math = "latex", as
+// the desktop draws the same fence. ok is false until the picture is ready
+// and when it fails, so the fence shows as code, with a TeX error above it.
+func (a *App) tikzLines(src string, srcLine, width int) ([]previewLine, bool) {
+	if a.imageMode() != imagesKitty {
+		return nil, false
+	}
+	img := a.externalImage(latexKey(string(a.theme.Fg), currentLatexFormat(), latexKeySrc("tikz", src)), width-2, "tikz", src)
+	if img != nil && img.err == nil {
+		return a.pictureLines(img, srcLine, width, "tikz"), true
+	}
+	return a.latexErrorRows(img, srcLine, width), false
+}
+
+// latexErrorRows is the first line of a failed latex render, wrapped rather
+// than truncated because the cause sits at the end of long paths. A render
+// that worked, is still running or lacks its tools has none.
+func (a *App) latexErrorRows(img *termImage, srcLine, width int) []previewLine {
+	if img == nil || img.err == nil || errors.Is(img.err, exec.ErrNotFound) {
+		return nil
+	}
+	out := []previewLine{}
+	for _, row := range wrapCommentText(firstLine(img.err.Error()), width-2) {
+		out = append(out, previewLine{text: " " + a.theme.StatusError.Render(row), srcLine: srcLine})
 	}
 	return out
 }
@@ -481,7 +508,7 @@ func (a *App) externalImage(key string, maxCols int, kind, src string) *termImag
 		d.mu.Unlock()
 		return nil
 	}
-	tools := map[string][]string{"mermaid": {"mmdc"}, "math": {"typst"}, "latex": {"pdftex", "pdftocairo"}}[kind]
+	tools := map[string][]string{"mermaid": {"mmdc"}, "math": {"typst"}, "latex": {"pdftex", "pdftocairo"}, "tikz": {"pdftex", "pdftocairo"}}[kind]
 	for _, tool := range tools {
 		if _, err := exec.LookPath(tool); err != nil {
 			img := &termImage{err: err}
@@ -541,11 +568,11 @@ func (a *App) renderEmbed(key string, req renderReq) *termImage {
 	defer cancel()
 	var data []byte
 	var err error
-	if req.kind == "latex" {
+	if req.kind == "latex" || req.kind == "tikz" {
 		if req.fg == "" {
 			req.fg = string(a.theme.Fg)
 		}
-		data, err = latexPNG(ctx, &d.latex, req.src, req.fg)
+		data, err = latexPNG(ctx, &d.latex, req.kind, req.src, req.fg)
 	} else {
 		data, err = renderExternal(ctx, req.kind, req.src, req.dark)
 	}
