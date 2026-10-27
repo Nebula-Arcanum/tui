@@ -324,6 +324,12 @@ func (a *App) renderEditor(buf *noteBuffer, w, h int, focused bool) string {
 		text := lines[line]
 		runes := []rune(text)
 		classes := lineClasses(text, blocks.fence[line], blocks.front[line])
+		if len(codeSpans[line]) > 0 {
+			// A math body has lexer spans but no fence: paint it as code.
+			for i := range classes {
+				classes[i] = stFence
+			}
+		}
 		if !strikeDone && !dimDone {
 			for i, c := range classes {
 				if c == stDone {

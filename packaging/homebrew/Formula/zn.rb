@@ -29,6 +29,17 @@ class Zn < Formula
     bin.install "zn"
   end
 
+  def caveats
+    <<~EOS
+      zn renders display math with typst by default. With math = "latex" under
+      [terminal] in config.toml, it needs pdftex and pdftocairo on PATH. A
+      basic TeX Live is enough, plus poppler and the packages zn uses:
+        brew install poppler
+        tlmgr install standalone varwidth preview xcolor amsmath amsfonts mhchem pgf
+      Add other packages with tlmgr later, as your preamble.tex needs them.
+    EOS
+  end
+
   test do
     ENV["ZENNOTES_CONFIG_DIR"] = (testpath/"config").to_s
     assert_match version.to_s, shell_output("#{bin}/zn --version")

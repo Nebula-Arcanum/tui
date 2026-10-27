@@ -125,6 +125,19 @@ func cmdDoctor(ctx context.Context, args Args) error {
 		checks = append(checks, diagnosticCheck{Name: name, OK: err == nil, Message: message})
 	}
 	add("configuration", config.ConfigTomlPath(), config.ValidateConfig())
+	if prefs, _, err := config.LoadPrefs(); err == nil && prefs.TerminalMath == "latex" {
+		missing := []string{}
+		for _, tool := range []struct{ name, from string }{{"pdftex", "TeX Live or MacTeX"}, {"pdftocairo", "poppler"}} {
+			if _, err := exec.LookPath(tool.name); err != nil {
+				missing = append(missing, tool.name+" (from "+tool.from+")")
+			}
+		}
+		var err error
+		if len(missing) > 0 {
+			err = fmt.Errorf("math = \"latex\" needs %s on PATH", strings.Join(missing, " and "))
+		}
+		add("latex tools", "pdftex and pdftocairo are available", err)
+	}
 	ws, wsErr := config.LoadWorkspacesFile()
 	add("saved vaults", fmt.Sprintf("%d vaults and %d servers in %s", len(ws.Vaults), len(ws.Servers), config.WorkspacesPath()), wsErr)
 	if installation, err := selfupdate.Current(); err == nil {

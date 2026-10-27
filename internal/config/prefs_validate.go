@@ -21,10 +21,16 @@ func ValidateConfig() error {
 	if _, err := toml.Decode(string(raw), &doc); err != nil {
 		return err
 	}
-	return validateKnownValues(doc)
+	return validateKnownValues(doc, true)
 }
 
-func validateKnownValues(doc map[string]any) error {
+// lenientKeys are checked only when strict (zn doctor): LoadPrefs falls back
+// to their defaults, so a bad value never stops zn from starting.
+var lenientKeys = map[string]map[string]bool{
+	"terminal": {"math": true, "render_timeout": true, "render_concurrency": true},
+}
+
+func validateKnownValues(doc map[string]any, strict bool) error {
 	for section, defaults := range ValueTables(DefaultPrefs()) {
 		raw, exists := doc[section]
 		if !exists {
@@ -36,7 +42,7 @@ func validateKnownValues(doc map[string]any) error {
 		}
 		for key, want := range defaults {
 			got, exists := table[key]
-			if !exists {
+			if !exists || (!strict && lenientKeys[section][key]) {
 				continue
 			}
 			valid := false
@@ -61,13 +67,13 @@ func validateKnownValues(doc map[string]any) error {
 		"editor":     {"default_view_mode": {"edit", "split", "preview"}, "line_number_mode": {"off", "absolute", "relative", "hybrid"}, "completed_task_style": {"none", "gray", "strikethrough", "gray-strikethrough"}, "time_format": {"12h", "24h"}},
 		"view":       {"tasks_view_mode": {"list", "kanban", "board", "calendar"}, "calendar_week_start": {"monday", "sunday"}, "note_sort_order": {"none", "name-asc", "name-desc", "updated-desc", "updated-asc", "created-desc", "created-asc"}},
 		"appearance": {"theme_mode": {"dark", "light", "system", "auto"}},
-		"terminal":   {"images": {"auto", "kitty", "off"}},
+		"terminal":   {"images": {"auto", "kitty", "off"}, "math": {"typst", "latex"}},
 	}
 	for section, keys := range enums {
 		table, _ := doc[section].(map[string]any)
 		for key, choices := range keys {
 			raw, exists := table[key]
-			if !exists {
+			if !exists || (!strict && lenientKeys[section][key]) {
 				continue
 			}
 			value, _ := raw.(string)

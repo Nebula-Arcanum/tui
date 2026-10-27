@@ -61,7 +61,7 @@ func UpdateConfig(edit func(map[string]any) error) error {
 	if err := edit(doc); err != nil {
 		return err
 	}
-	if err := validateKnownValues(doc); err != nil {
+	if err := validateKnownValues(doc, true); err != nil {
 		return err
 	}
 	var out bytes.Buffer

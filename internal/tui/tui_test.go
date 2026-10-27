@@ -239,3 +239,36 @@ func TestHumanSize(t *testing.T) {
 		t.Fatalf("%s %s %s", humanSize(512), humanSize(2048), humanSize(3<<20))
 	}
 }
+
+// AC71: the in-app help mentions the latex settings and the preamble file.
+func TestHelpMentionsLatexSettings(t *testing.T) {
+	a := &App{}
+	a.keymap = newTestResolver()
+	help := strings.Join(helpLines(a, ""), "\n")
+	for _, want := range []string{"[terminal] math", "preamble.tex", "render_timeout", "render_concurrency"} {
+		if !contains(help, want) {
+			t.Errorf("help does not mention %q", want)
+		}
+	}
+}
+
+// AC79: the help row keyed `[terminal] math` names the tools latex needs.
+func TestHelpMathEntryNamesTools(t *testing.T) {
+	a := &App{}
+	a.keymap = newTestResolver()
+	var row string
+	for _, l := range helpLines(a, "") {
+		if key, _, ok := strings.Cut(l, "\t"); ok && key == "[terminal] math" {
+			row = l
+			break
+		}
+	}
+	if row == "" {
+		t.Fatal("no help row with the key [terminal] math")
+	}
+	for _, want := range []string{"pdftex", "pdftocairo"} {
+		if !contains(row, want) {
+			t.Errorf("[terminal] math row does not name %q: %q", want, row)
+		}
+	}
+}

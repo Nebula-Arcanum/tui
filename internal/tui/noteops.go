@@ -901,6 +901,7 @@ func (a *App) openTextSearch(initial string) {
 
 // openNoteQuiet opens a note without recording a jump.
 func (a *App) openNoteQuiet(path string) {
+	a.forgetEmbedTimeouts()
 	pane := a.activePane
 	if idx := pane.findTab(path); idx >= 0 {
 		pane.active = idx
