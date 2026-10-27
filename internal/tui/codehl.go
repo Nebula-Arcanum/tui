@@ -91,9 +91,11 @@ func (a *App) codeSpansFor(buf *noteBuffer, lines []string) map[int][]codeSpan {
 }
 
 // highlightFences finds ```lang blocks and display-math blocks and tokenizes
-// their bodies. engine is prefs.TerminalMath: under "latex" $$…$$ bodies,
-// block-level \[…\] and the AC7 environments are lexed as tex; otherwise
-// $$…$$ bodies are lexed as typst.
+// their bodies. $$…$$ bodies are lexed as tex under either engine: $$ holds
+// LaTeX on every ZenNotes surface (the desktop renders it with KaTeX), and
+// chroma's typst lexer marks each of its backslashes as an error, in red.
+// engine is prefs.TerminalMath; under "latex" block-level \[…\] and the
+// display environments are lexed as tex too.
 func highlightFences(lines []string, styleName, engine string) map[int][]codeSpan {
 	out := map[int][]codeSpan{}
 	style := styles.Get(styleName)
@@ -114,23 +116,17 @@ func highlightFences(lines []string, styleName, engine string) map[int][]codeSpa
 		for j < len(lines) && !fenceRe.MatchString(lines[j]) {
 			j++
 		}
+		if lang == "tikz" {
+			// chroma has no tikz lexer; the fence body is TeX.
+			lang = "tex"
+		}
 		if lang != "" && j > i+1 {
 			highlightBlock(out, lines[i+1:j], i+1, lang, style)
 		}
 		i = j + 1
 	}
-	latex := engine == "latex"
-	mathLang := "typst"
-	if latex {
-		mathLang = "tex"
-	}
-	for _, b := range splitBlocks(lines, latex) {
-		lang := mathLang
-		switch b.kind {
-		case "math":
-		case "tex":
-			lang = "tex"
-		default:
+	for _, b := range splitBlocks(lines, engine == "latex") {
+		if b.kind != "math" && b.kind != "tex" {
 			continue
 		}
 		// The opener is line b.start; the closer, when there is one, is b.end-1.
@@ -140,7 +136,7 @@ func highlightFences(lines []string, styleName, engine string) map[int][]codeSpa
 			end--
 		}
 		if end > b.start+1 {
-			highlightBlock(out, lines[b.start+1:end], b.start+1, lang, style)
+			highlightBlock(out, lines[b.start+1:end], b.start+1, "tex", style)
 		}
 	}
 	return out

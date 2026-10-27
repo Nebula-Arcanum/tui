@@ -219,18 +219,29 @@ func TestHighlightEnvironmentWithTex(t *testing.T) { // AC58
 	}
 }
 
-func TestHighlightDollarBodyWithTypstUnderTypst(t *testing.T) { // AC59
-	lines := []string{"Some prose", "", "$$", `sum_(i=1)^n x_i = "hi" + 2`, "$$", "", "after"}
+// $$ holds the desktop's KaTeX, so typst does not change how it is lexed:
+// chroma's typst lexer would paint every backslash as an error.
+func TestHighlightDollarBodyWithTexUnderTypst(t *testing.T) {
+	lines := []string{"Some prose", "", "$$", `x = \frac{-b \pm \sqrt{b^2-4ac}}{2a}`, "$$", "", "after"}
 	spans := highlightFences(lines, "gruvbox", "typst")
-	assertMathBodyLexed(t, spans, lines, 2, 4, "typst", "tex")
+	assertMathBodyLexed(t, spans, lines, 2, 4, "tex", "typst")
 	if _, ok := spans[0]; ok {
 		t.Fatal("prose is untouched")
 	}
 }
 
+func TestHighlightTikzFenceWithTex(t *testing.T) {
+	lines := []string{"```tikz", `\begin{tikzpicture}`, `\draw (0,0) -- (1,1);`, `\end{tikzpicture}`, "```"}
+	for _, engine := range []string{"typst", "latex"} {
+		assertMathBodyLexed(t, highlightFences(lines, "gruvbox", engine), lines, 0, 4, "tex", "typst")
+	}
+}
+
 func TestCodeSpansForRehighlightsWhenEngineChanges(t *testing.T) {
 	a := &App{theme: buildTheme(true), prefs: prefsView{Prefs: config.Prefs{TerminalMath: "typst"}}}
-	text := "$$\n\\frac{a}{b}\n$$"
+	// \[ \] is display math only under latex, so its spans change with the
+	// engine; $$ is lexed as tex under both.
+	text := "\\[\n\\frac{a}{b}\n\\]"
 	buf := &noteBuffer{ed: vim.New(text, vim.Options{}, vim.Hooks{})}
 	lines := strings.Split(text, "\n")
 	typst := fmt.Sprint(a.codeSpansFor(buf, lines))
