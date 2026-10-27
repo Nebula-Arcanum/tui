@@ -1249,3 +1249,58 @@ func TestLatexKeyVersionedForCrop(t *testing.T) { // AC88
 	}
 	t.Fatalf("no new PNG beside the pre-crop one under %s: %v", texDir, pngFiles(texDir))
 }
+
+func TestOverfullBy(t *testing.T) {
+	log := []byte("This is pdfTeX\n" +
+		"Overfull \\hbox (12.5pt too wide) detected at line 3\n" +
+		"Overfull \\hbox (395.19788pt too wide) detected at line 2\n" +
+		"Overfull \\vbox (80.0pt too high) has occurred while \\output is active\n")
+	if got := overfullBy(log); got != 395.19788 {
+		t.Fatalf("overfullBy = %v, want the widest hbox, 395.19788", got)
+	}
+	if got := overfullBy([]byte("This is pdfTeX\nOutput written on m.pdf\n")); got != 0 {
+		t.Fatalf("overfullBy of a clean log = %v, want 0", got)
+	}
+}
+
+func TestOverfullBlockRendersAgainOnAWiderPage(t *testing.T) {
+	latexEnv(t)
+	n := 0
+	calls := fakeTeX(t, texFake{render: func(ctx context.Context, base string) ([]byte, error) {
+		n++
+		log := "This is pdfTeX\n"
+		if n == 1 {
+			log += "Overfull \\hbox (395.19788pt too wide) detected at line 2\n"
+		}
+		if err := os.WriteFile(base+".pdf", []byte("%PDF-1.5 fake"), 0o644); err != nil {
+			return nil, err
+		}
+		return nil, os.WriteFile(base+".log", []byte(log), 0o644)
+	}})
+	if img := renderLatex(newLatexApp(t, 0), `\[ a+b+c \]`, 10*time.Second); failed(img) {
+		t.Fatalf("render: %v", imgErr(img))
+	}
+	r := renderCalls(calls())
+	if len(r) != 2 {
+		t.Fatalf("pdftex rendered %d times, want 2 (the second on a wider page)", len(r))
+	}
+	const wider = `\standaloneconfig{varwidth=\dimexpr\linewidth+397pt\relax}`
+	if strings.Contains(r[0].allTeX(), wider) {
+		t.Fatalf("the first render already widened the page:\n%s", r[0].allTeX())
+	}
+	second := r[1].allTeX()
+	if !strings.HasPrefix(second, wider+"\n") || !strings.Contains(second, `a+b+c`) {
+		t.Fatalf("the second render does not widen the page by the overflow:\n%s", second)
+	}
+}
+
+func TestFittingBlockRendersOnce(t *testing.T) {
+	latexEnv(t)
+	calls := fakeTeX(t, texFake{})
+	if img := renderLatex(newLatexApp(t, 0), `\[ x \]`, 10*time.Second); failed(img) {
+		t.Fatalf("render: %v", imgErr(img))
+	}
+	if r := renderCalls(calls()); len(r) != 1 {
+		t.Fatalf("pdftex rendered %d times for a block that fits, want 1", len(r))
+	}
+}

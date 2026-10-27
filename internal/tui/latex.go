@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -243,6 +244,27 @@ func buildFormat(ctx context.Context, texDir, name, src string) error {
 	return nil
 }
 
+// overfullRe matches TeX's report of a line wider than the page.
+var overfullRe = regexp.MustCompile(`Overfull \\hbox \(([0-9.]+)pt too wide\)`)
+
+// overfullBy is how far, in pt, the widest line in a TeX log runs past the
+// page, or 0 when every line fits.
+func overfullBy(log []byte) float64 {
+	widest := 0.0
+	for _, m := range overfullRe.FindAllSubmatch(log, -1) {
+		if v, err := strconv.ParseFloat(string(m[1]), 64); err == nil && v > widest {
+			widest = v
+		}
+	}
+	return widest
+}
+
+// widerPage is the preamble line that widens standalone's varwidth page by
+// over pt, plus a little for rounding in the log.
+func widerPage(over float64) string {
+	return fmt.Sprintf("\\standaloneconfig{varwidth=\\dimexpr\\linewidth+%dpt\\relax}\n", int(over)+2)
+}
+
 // latexDPI rasterises 10pt TeX at about the size of typst's 18pt at 144 ppi.
 const latexDPI = "260"
 
@@ -321,6 +343,21 @@ func latexPNG(ctx context.Context, formats *latexFormats, src, fg string) ([]byt
 	if out, err := runTool(ctx, dir, texEnv(texDir), "pdftex", args...); err != nil {
 		return nil, texError(out, filepath.Join(dir, "m.log"), err)
 	}
+	// The page is \linewidth wide, and a longer display or a wider picture
+	// is cut off at its right edge. TeX reports by how much it ran over, so
+	// that block alone renders again on a page widened by as much; a block
+	// that fits keeps the usual width, so multline and equation numbers
+	// still sit where they would in a document.
+	if log, err := os.ReadFile(filepath.Join(dir, "m.log")); err == nil {
+		if over := overfullBy(log); over > 0 {
+			if err := os.WriteFile(filepath.Join(dir, "m.tex"), []byte(widerPage(over)+latexDocument(src, fg)), 0o644); err != nil {
+				return nil, err
+			}
+			if out, err := runTool(ctx, dir, texEnv(texDir), "pdftex", args...); err != nil {
+				return nil, texError(out, filepath.Join(dir, "m.log"), err)
+			}
+		}
+	}
 	if out, err := runTool(ctx, dir, nil, "pdftocairo", "-png", "-transp", "-singlefile", "-r", latexDPI, "m.pdf", "m"); err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			return nil, fmt.Errorf("latex: pdftocairo: %w", err)
@@ -365,7 +402,8 @@ func currentLatexFormat() string {
 
 // latexKey names a latex block in memory and, without the "math:" prefix,
 // its PNG on disk: theme colour, format (wrapper + preamble hash) and source.
-// crop1 versions the key so uncropped PNGs from before cropToInk are not read.
+// The version token changes whenever the pictures do, so PNGs that an
+// older zn cached are not read.
 func latexKey(fg, format, src string) string {
-	return contentKey("math", "latex\x00crop1\x00"+fg+"\x00"+format+"\x00"+src)
+	return contentKey("math", "latex\x00wide1\x00"+fg+"\x00"+format+"\x00"+src)
 }

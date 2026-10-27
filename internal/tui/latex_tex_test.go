@@ -371,3 +371,33 @@ func TestRealDisplayPNGCroppedToInk(t *testing.T) { // AC88
 		t.Errorf("displayed height %d rows at 80 cols, %d at 120: it depends on the pane width", narrow.rows, wide.rows)
 	}
 }
+
+func TestRealWideBlocksAreNotClipped(t *testing.T) {
+	_, texDir := realTeXEnv(t)
+	long := ""
+	for c := 'a'; c <= 'z'; c++ {
+		long += string(c) + "+" + string(c-'a'+'A') + "+"
+	}
+	for _, tc := range []struct {
+		name, src string
+		minW      int
+	}{
+		// 26 letter pairs run past standalone's 345pt page; whole, they
+		// are well over 2000 px at latexDPI.
+		{"display", "\\[ " + long + "1 \\]", 2000},
+		// 20cm is about 2050 px at latexDPI; the page alone is 1256.
+		{"tikz", "\\begin{tikzpicture}\\draw (0,0) rectangle (20cm,1cm);\\end{tikzpicture}", 2000},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := os.RemoveAll(texDir); err != nil {
+				t.Fatal(err)
+			}
+			if img := renderReal(newLatexApp(t, 0), tc.src, realTimeout); failed(img) {
+				t.Fatalf("render: %v", imgErr(img))
+			}
+			if w := onlyPNG(t, texDir).Bounds().Dx(); w < tc.minW {
+				t.Fatalf("PNG is %d px wide, want at least %d: the block was clipped at the page edge", w, tc.minW)
+			}
+		})
+	}
+}
