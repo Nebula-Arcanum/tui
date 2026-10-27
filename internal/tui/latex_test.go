@@ -101,6 +101,8 @@ type texFake struct {
 	render func(ctx context.Context, base string) ([]byte, error)
 	// cairo, when set, replaces a successful pdftocairo run.
 	cairo func(ctx context.Context) ([]byte, error)
+	// png, when set, is the picture pdftocairo writes instead of tinyPNG.
+	png []byte
 }
 
 // fakeTeX swaps runTool for fake pdftex and pdftocairo. A format build
@@ -187,17 +189,21 @@ func fakeTeX(t *testing.T, f texFake) func() []texCall {
 			if f.cairo != nil {
 				return f.cairo(ctx)
 			}
+			pic := f.png
+			if pic == nil {
+				pic = tinyPNG(t)
+			}
 			wrote := false
 			for _, a := range args {
 				if strings.HasSuffix(a, ".png") {
-					if err := os.WriteFile(inDir(dir, a), tinyPNG(t), 0o644); err != nil {
+					if err := os.WriteFile(inDir(dir, a), pic, 0o644); err != nil {
 						return nil, err
 					}
 					wrote = true
 				}
 			}
 			if last := args[len(args)-1]; !wrote && !strings.HasPrefix(last, "-") && !strings.HasSuffix(last, ".pdf") {
-				if err := os.WriteFile(inDir(dir, last)+".png", tinyPNG(t), 0o644); err != nil {
+				if err := os.WriteFile(inDir(dir, last)+".png", pic, 0o644); err != nil {
 					return nil, err
 				}
 			}

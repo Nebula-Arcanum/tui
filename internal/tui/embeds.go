@@ -392,7 +392,7 @@ func (a *App) mermaidLines(src string, srcLine, width int) []previewLine {
 	key := contentKey("mermaid", src)
 	if a.imageMode() == imagesKitty {
 		if img := a.externalImage(key, width-2, "mermaid", src); img != nil && img.err == nil {
-			return a.pictureLines(img, srcLine, width, "mermaid")
+			return a.pictureLines(a.fitted(key, img, width-2), srcLine, width, "mermaid")
 		}
 	}
 	d := a.diagrams()
@@ -447,15 +447,18 @@ func (a *App) mathLines(body string, srcLine, width int) []previewLine {
 	out := []previewLine{}
 	if a.imageMode() == imagesKitty {
 		var img *termImage
+		var key string
 		if a.prefs.TerminalMath == "latex" {
 			src := strings.TrimSpace(body)
-			img = a.externalImage(latexKey(string(th.Fg), currentLatexFormat(), src), width-2, "latex", src)
+			key = latexKey(string(th.Fg), currentLatexFormat(), src)
+			img = a.externalImage(key, width-2, "latex", src)
 			out = append(out, a.latexErrorRows(img, srcLine, width)...)
 		} else {
-			img = a.externalImage(contentKey("math", fmt.Sprintf("typst\x00%t\x00%s", th.Dark, inner)), width-2, "math", inner)
+			key = contentKey("math", fmt.Sprintf("typst\x00%t\x00%s", th.Dark, inner))
+			img = a.externalImage(key, width-2, "math", inner)
 		}
 		if img != nil && img.err == nil {
-			return a.pictureLines(img, srcLine, width, "math")
+			return a.pictureLines(a.fitted(key, img, width-2), srcLine, width, "math")
 		}
 	}
 	for _, l := range strings.Split(inner, "\n") {
@@ -471,11 +474,23 @@ func (a *App) tikzLines(src string, srcLine, width int) ([]previewLine, bool) {
 	if a.imageMode() != imagesKitty {
 		return nil, false
 	}
-	img := a.externalImage(latexKey(string(a.theme.Fg), currentLatexFormat(), latexKeySrc("tikz", src)), width-2, "tikz", src)
+	key := latexKey(string(a.theme.Fg), currentLatexFormat(), latexKeySrc("tikz", src))
+	img := a.externalImage(key, width-2, "tikz", src)
 	if img != nil && img.err == nil {
-		return a.pictureLines(img, srcLine, width, "tikz"), true
+		return a.pictureLines(a.fitted(key, img, width-2), srcLine, width, "tikz"), true
 	}
 	return a.latexErrorRows(img, srcLine, width), false
+}
+
+// fitted is a rendered picture at the size that fits maxCols now. The
+// background render sends it at the pane width of the moment it finished;
+// without this, a picture first shown in a narrow pane (a split, a window
+// still opening) stays that small after the pane grows.
+func (a *App) fitted(key string, img *termImage, maxCols int) *termImage {
+	if f := a.images().refit(key, maxCols, 40); f != nil && f.err == nil {
+		return f
+	}
+	return img
 }
 
 // latexErrorRows is the first line of a failed latex render, wrapped rather
