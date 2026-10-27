@@ -96,7 +96,7 @@ func TestThemePaintPreservesNestedColorsAndHonorsNoColor(t *testing.T) {
 	}
 }
 
-// AC56–AC58 in the editor itself: a math body is painted with the same
+// In the editor itself: a math body is painted with the same
 // lexer colors as the identical body in a ```tex fence, not as prose.
 func TestEditorPaintsMathBodyLikeTexFence(t *testing.T) {
 	profile := lipgloss.ColorProfile()

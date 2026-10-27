@@ -17,7 +17,7 @@ import (
 	"github.com/ZenNotes/tui/internal/mcp"
 )
 
-// --- Step 8: real pdftex and pdftocairo ---
+// --- real pdftex and pdftocairo ---
 //
 // These run the real tools found on PATH. Each test skips when either tool
 // is missing (CI has no TeX) or on windows. runTool is not swapped.
@@ -136,7 +136,7 @@ func realMathApp(t *testing.T) (*App, chan string) {
 	return newMathApp(t, p)
 }
 
-func TestRealDefaultPreambleRendersAmsMhchemTikz(t *testing.T) { // AC16
+func TestRealDefaultPreambleRendersAmsMhchemTikz(t *testing.T) {
 	realTeXEnv(t)
 	a := newLatexApp(t, 0)
 	align := "\\begin{align*}\na &= \\ce{H2O} \\\\\nb &\\leq \\mathbb{R}\n\\end{align*}"
@@ -152,7 +152,7 @@ func TestRealDefaultPreambleRendersAmsMhchemTikz(t *testing.T) { // AC16
 	}
 }
 
-func TestRealUserPackageInPreamble(t *testing.T) { // AC21
+func TestRealUserPackageInPreamble(t *testing.T) {
 	realTeXEnv(t)
 	src := "\\[ \\bm{x} \\]"
 	if img := renderReal(newLatexApp(t, 0), src, realTimeout); !failed(img) {
@@ -170,7 +170,7 @@ func TestRealUserPackageInPreamble(t *testing.T) { // AC21
 	}
 }
 
-func TestRealTikzStrokeFollowsTheme(t *testing.T) { // AC23
+func TestRealTikzStrokeFollowsTheme(t *testing.T) {
 	requireRealTeX(t)
 	src := "\\begin{tikzpicture}\n\\draw[line width=4pt] (0,0) rectangle (2,1);\n\\fill (3,0.5) circle (0.5);\n\\end{tikzpicture}"
 	for _, dark := range []bool{true, false} {
@@ -193,7 +193,7 @@ func TestRealTikzStrokeFollowsTheme(t *testing.T) { // AC23
 	}
 }
 
-func TestRealFormatReusedAcrossApps(t *testing.T) { // AC25
+func TestRealFormatReusedAcrossApps(t *testing.T) {
 	_, texDir := realTeXEnv(t)
 	if img := renderReal(newLatexApp(t, 0), "\\[ x \\]", realTimeout); failed(img) {
 		t.Fatalf("first render: %v", imgErr(img))
@@ -227,7 +227,7 @@ func TestRealFormatReusedAcrossApps(t *testing.T) { // AC25
 	}
 }
 
-func TestRealWrite18Blocked(t *testing.T) { // AC28
+func TestRealWrite18Blocked(t *testing.T) {
 	realTeXEnv(t)
 	target := filepath.Join(t.TempDir(), "pwned")
 	src := "\\immediate\\write18{touch " + target + "}\n\\[ x \\]"
@@ -238,7 +238,7 @@ func TestRealWrite18Blocked(t *testing.T) { // AC28
 	mustPicture(t, img) // the render ran, so the check above is not vacuous
 }
 
-func TestRealSandboxBlocksWritesOutsideWorkDir(t *testing.T) { // AC30
+func TestRealSandboxBlocksWritesOutsideWorkDir(t *testing.T) {
 	_, texDir := realTeXEnv(t)
 	target := filepath.Join(t.TempDir(), "leak.txt")
 	src := "\\newwrite\\znout\n\\immediate\\openout\\znout=" + target + "\n" +
@@ -257,8 +257,8 @@ func TestRealSandboxBlocksWritesOutsideWorkDir(t *testing.T) { // AC30
 		t.Fatalf("render did not fail on the refused write: %v", err)
 	}
 
-	// Guard: reading by absolute path is accepted TeX behaviour (rev 7). If
-	// TeX starts refusing it, revisit the README warning (AC87).
+	// Guard: reading by absolute path is accepted TeX behaviour. If
+	// TeX starts refusing it, revisit the README warning.
 	t.Run("absolute_read_still_happens", func(t *testing.T) {
 		in := filepath.Join(t.TempDir(), "box.tex")
 		if err := os.WriteFile(in, []byte("\\rule{4cm}{4cm}\n"), 0o644); err != nil {
@@ -276,7 +276,7 @@ func TestRealSandboxBlocksWritesOutsideWorkDir(t *testing.T) { // AC30
 	})
 }
 
-func TestRealLoopKilledByTimeout(t *testing.T) { // AC32
+func TestRealLoopKilledByTimeout(t *testing.T) {
 	realTeXEnv(t)
 	a := newLatexApp(t, 0)
 	// Build the format first, so the 2s budget below is spent on the loop.
@@ -293,7 +293,7 @@ func TestRealLoopKilledByTimeout(t *testing.T) { // AC32
 	}
 }
 
-func TestRealPNGHasTransparentBackground(t *testing.T) { // AC39
+func TestRealPNGHasTransparentBackground(t *testing.T) {
 	_, texDir := realTeXEnv(t)
 	if img := renderReal(newLatexApp(t, 0), "\\[ x^2 + y^2 \\]", realTimeout); failed(img) {
 		t.Fatalf("render: %v", imgErr(img))
@@ -351,7 +351,7 @@ func TestRealInstructionsTikzExampleRenders(t *testing.T) {
 	}
 }
 
-func TestRealDisplayPNGCroppedToInk(t *testing.T) { // AC88
+func TestRealDisplayPNGCroppedToInk(t *testing.T) {
 	_, texDir := realTeXEnv(t)
 	const src = "\\[ \\frac{a}{b} \\]"
 	render := func(cols int) *termImage {

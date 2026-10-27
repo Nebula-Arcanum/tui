@@ -56,37 +56,37 @@ func latexToolsCheck(t *testing.T, checks []diagnosticCheck, out string) diagnos
 	return diagnosticCheck{}
 }
 
-// AC75: under latex, a missing pdftex is a failing check that names it.
+// Under latex, a missing pdftex is a failing check that names it.
 func TestDoctorLatexReportsMissingPdftex(t *testing.T) {
 	out, checks := doctorWithTools(t, `math = "latex"`, "pdftocairo")
 	c := latexToolsCheck(t, checks, out)
 	if c.OK || !strings.Contains(c.Message, "pdftex") {
-		t.Fatalf("AC75: latex tools check %+v", c)
+		t.Fatalf("latex tools check %+v", c)
 	}
 	if strings.Contains(c.Message, "pdftocairo") {
-		t.Fatalf("AC75: pdftocairo is on PATH but reported missing: %+v", c)
+		t.Fatalf("pdftocairo is on PATH but reported missing: %+v", c)
 	}
 }
 
-// AC76: under latex, a missing pdftocairo is a failing check that names it.
+// Under latex, a missing pdftocairo is a failing check that names it.
 func TestDoctorLatexReportsMissingPdftocairo(t *testing.T) {
 	out, checks := doctorWithTools(t, `math = "latex"`, "pdftex")
 	c := latexToolsCheck(t, checks, out)
 	if c.OK || !strings.Contains(c.Message, "pdftocairo") {
-		t.Fatalf("AC76: latex tools check %+v", c)
+		t.Fatalf("latex tools check %+v", c)
 	}
 	if strings.Contains(strings.ReplaceAll(c.Message, "pdftocairo", ""), "pdftex") {
-		t.Fatalf("AC76: pdftex is on PATH but reported missing: %+v", c)
+		t.Fatalf("pdftex is on PATH but reported missing: %+v", c)
 	}
 }
 
-// AC77: under typst, or with no math key, doctor never mentions the TeX tools.
+// Under typst, or with no math key, doctor never mentions the TeX tools.
 func TestDoctorTypstNeverMentionsTexTools(t *testing.T) {
 	for _, terminal := range []string{`math = "typst"`, ``} {
 		out, _ := doctorWithTools(t, terminal)
 		for _, tool := range []string{"pdftex", "pdftocairo"} {
 			if strings.Contains(out, tool) {
-				t.Errorf("AC77 %q: doctor output mentions %s:\n%s", terminal, tool, out)
+				t.Errorf("%q: doctor output mentions %s:\n%s", terminal, tool, out)
 			}
 		}
 	}

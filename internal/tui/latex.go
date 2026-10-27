@@ -84,7 +84,7 @@ func ensurePreamble() ([]byte, error) {
 }
 
 // preambleError drops the (temp) file path, so the preview's error row is
-// short enough to show the cause (AC20): "preamble.tex: open: permission
+// short enough to show the cause: "preamble.tex: open: permission
 // denied".
 func preambleError(err error) error {
 	var pe *fs.PathError
@@ -169,13 +169,18 @@ func latexDir() (string, error) {
 	return filepath.Join(c, "zn", "tex"), nil
 }
 
-// texEnv sandboxes pdftex: no reads or writes outside the working dir
-// (AC29), and formats found in the cache dir before the TeX defaults.
+// texEnv sandboxes pdftex: openout_any=p keeps every write inside the
+// working dir, and formats are found in the cache dir before the TeX
+// defaults. openin_any=p is asked for too, but TeX Live (2026) still reads
+// any file by absolute or ../ path under it, so a note can show a readable
+// file in its picture; the README warns about that. Reads stay local: no
+// write leaves the work dir and \write18 is off.
 func texEnv(texDir string) []string {
 	return []string{"openin_any=p", "openout_any=p", "TEXFORMATS=" + texDir + string(os.PathListSeparator)}
 }
 
-// texSandbox is passed to every pdftex run (AC28).
+// texSandbox is passed to every pdftex run: no shell escape, and a TeX
+// error ends the run instead of waiting for input.
 var texSandbox = []string{"-no-shell-escape", "-interaction=nonstopmode", "-halt-on-error"}
 
 // texError is the first "! " line of a TeX log, else the output's first line.
@@ -201,7 +206,7 @@ func texError(out []byte, logPath string, err error) error {
 // latexFormats single-flights format builds per App and memoises TeX
 // failures per format name, so every block shows the same error until the
 // preamble changes. A timed-out build is not remembered: the next block
-// tries again (AC82).
+// tries again.
 type latexFormats struct {
 	mu     sync.Mutex
 	builds map[string]*fmtBuild

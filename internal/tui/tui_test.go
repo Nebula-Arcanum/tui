@@ -240,7 +240,7 @@ func TestHumanSize(t *testing.T) {
 	}
 }
 
-// AC71: the in-app help mentions the latex settings and the preamble file.
+// The in-app help mentions the latex settings and the preamble file.
 func TestHelpMentionsLatexSettings(t *testing.T) {
 	a := &App{}
 	a.keymap = newTestResolver()
@@ -252,7 +252,7 @@ func TestHelpMentionsLatexSettings(t *testing.T) {
 	}
 }
 
-// AC79: the help row keyed `[terminal] math` names the tools latex needs.
+// The help row keyed `[terminal] math` names the tools latex needs.
 func TestHelpMathEntryNamesTools(t *testing.T) {
 	a := &App{}
 	a.keymap = newTestResolver()

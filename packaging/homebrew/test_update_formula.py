@@ -50,7 +50,7 @@ class UpdateFormulaTests(unittest.TestCase):
             render_formula(formula, "1.2.3", self.release)
 
     def test_formula_has_latex_caveats_without_dependencies(self):
-        # AC69: caveats name the latex tools; no depends_on is added for them.
+        # The caveats name the latex tools; no depends_on is added for them.
         caveats = re.search(r"^  def caveats\n(.*?)^  end\n", self.formula, re.M | re.S)
         self.assertIsNotNone(caveats, "formula has no def caveats")
         for want in ('math = "latex"', "pdftex", "pdftocairo"):

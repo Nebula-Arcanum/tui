@@ -22,7 +22,7 @@ import (
 	"github.com/ZenNotes/tui/internal/config"
 )
 
-// --- Step 4: LaTeX pipeline, part 1: preamble, document, format, sandbox ---
+// --- LaTeX pipeline, part 1: preamble, document, format, sandbox ---
 //
 // The pipeline is driven through the synchronous seam renderEmbed with a
 // renderReq of kind "latex" whose src is the block's whole source, $$
@@ -308,7 +308,7 @@ func imgErr(img *termImage) error {
 	return img.err
 }
 
-func TestLatexDocumentIsStandaloneWithBody(t *testing.T) { // AC15
+func TestLatexDocumentIsStandaloneWithBody(t *testing.T) {
 	for _, src := range []string{
 		"\\[ a + b = c \\]",
 		"\\begin{align}\n  a &= b \\\\\n  c &= d\n\\end{align}",
@@ -336,7 +336,7 @@ func TestLatexDocumentIsStandaloneWithBody(t *testing.T) { // AC15
 	}
 }
 
-func TestLatexDollarBlockWrappedAsDisplay(t *testing.T) { // AC73
+func TestLatexDollarBlockWrappedAsDisplay(t *testing.T) {
 	for _, tc := range []struct{ name, src, want string }{
 		{"one line", "$$ x^2 $$", `\\\[\s*x\^2\s*\\\]`},
 		{"multi line", "$$\na^2\n+ b^2\n$$", `\\\[\s*a\^2\n\+ b\^2\s*\\\]`},
@@ -356,7 +356,7 @@ func TestLatexDollarBlockWrappedAsDisplay(t *testing.T) { // AC73
 	}
 }
 
-func TestLatexThemeColourAfterPreambleNotInFile(t *testing.T) { // AC22
+func TestLatexThemeColourAfterPreambleNotInFile(t *testing.T) {
 	latexEnv(t)
 	calls := fakeTeX(t, texFake{})
 	a := newLatexApp(t, 0)
@@ -383,7 +383,7 @@ func TestLatexThemeColourAfterPreambleNotInFile(t *testing.T) { // AC22
 	}
 }
 
-func TestEnsurePreambleWritesDefaultPackages(t *testing.T) { // AC16
+func TestEnsurePreambleWritesDefaultPackages(t *testing.T) {
 	latexEnv(t)
 	fakeTeX(t, texFake{})
 	if _, err := os.Stat(config.PreamblePath()); !os.IsNotExist(err) {
@@ -408,7 +408,7 @@ func TestEnsurePreambleWritesDefaultPackages(t *testing.T) { // AC16
 	}
 }
 
-func TestEnsurePreambleKeepsEditedBytes(t *testing.T) { // AC19
+func TestEnsurePreambleKeepsEditedBytes(t *testing.T) {
 	latexEnv(t)
 	fakeTeX(t, texFake{})
 	mine := []byte("% my preamble\r\n\\usepackage{amsmath}\n\\newcommand{\\R}{\\mathbb{R}}")
@@ -455,7 +455,7 @@ func TestEnsurePreambleParallelFirstReadsSeeWholeFile(t *testing.T) { // risk: s
 	}
 }
 
-func TestEnsurePreambleReportsWriteError(t *testing.T) { // AC20
+func TestEnsurePreambleReportsWriteError(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("read-only directories via chmod are not enforced on windows")
 	}
@@ -477,7 +477,7 @@ func TestEnsurePreambleReportsWriteError(t *testing.T) { // AC20
 	}
 }
 
-func TestFormatBuiltIntoCacheAndUsed(t *testing.T) { // AC24
+func TestFormatBuiltIntoCacheAndUsed(t *testing.T) {
 	_, texDir := latexEnv(t)
 	calls := fakeTeX(t, texFake{})
 	renderLatex(newLatexApp(t, 0), "\\[ x \\]", 10*time.Second)
@@ -512,7 +512,7 @@ func TestFormatBuiltIntoCacheAndUsed(t *testing.T) { // AC24
 	}
 }
 
-func TestFormatNotRebuiltAcrossSessions(t *testing.T) { // AC25
+func TestFormatNotRebuiltAcrossSessions(t *testing.T) {
 	_, texDir := latexEnv(t)
 	calls := fakeTeX(t, texFake{})
 	first := newLatexApp(t, 0)
@@ -535,7 +535,7 @@ func TestFormatNotRebuiltAcrossSessions(t *testing.T) { // AC25
 	}
 }
 
-func TestFormatRebuiltWhenPreambleChanges(t *testing.T) { // AC26
+func TestFormatRebuiltWhenPreambleChanges(t *testing.T) {
 	latexEnv(t)
 	calls := fakeTeX(t, texFake{})
 	a := newLatexApp(t, 0)
@@ -605,7 +605,7 @@ func TestFormatBuiltOnceForParallelRenders(t *testing.T) { // risk: single-fligh
 	}
 }
 
-func TestFormatErrorFailsEveryBlockWithFirstLine(t *testing.T) { // AC27
+func TestFormatErrorFailsEveryBlockWithFirstLine(t *testing.T) {
 	latexEnv(t)
 	if err := os.WriteFile(config.PreamblePath(), []byte("\\usepackage{amsmath}\n\\badmacro\n"), 0o644); err != nil {
 		t.Fatal(err)
@@ -632,7 +632,7 @@ func TestFormatErrorFailsEveryBlockWithFirstLine(t *testing.T) { // AC27
 	}
 }
 
-func TestFormatBuildTimeoutFailsBlocks(t *testing.T) { // AC33
+func TestFormatBuildTimeoutFailsBlocks(t *testing.T) {
 	latexEnv(t)
 	calls := fakeTeX(t, texFake{build: func(ctx context.Context) ([]byte, error) {
 		<-ctx.Done()
@@ -657,7 +657,7 @@ func TestFormatBuildTimeoutFailsBlocks(t *testing.T) { // AC33
 	}
 }
 
-func TestPdftexRunsWithNoShellEscapeAndParanoidIO(t *testing.T) { // AC28, AC29
+func TestPdftexRunsWithNoShellEscapeAndParanoidIO(t *testing.T) {
 	latexEnv(t)
 	calls := fakeTeX(t, texFake{})
 	renderLatex(newLatexApp(t, 0), "\\[ \\immediate\\write18{touch pwned} x \\]", 10*time.Second)
@@ -690,7 +690,7 @@ func TestPdftexRunsWithNoShellEscapeAndParanoidIO(t *testing.T) { // AC28, AC29
 	}
 }
 
-// --- Step 5: LaTeX pipeline, part 2: rasterise, errors, timeouts, disk cache ---
+// --- LaTeX pipeline, part 2: rasterise, errors, timeouts, disk cache ---
 
 func cairoCalls(calls []texCall) []texCall {
 	out := []texCall{}
@@ -726,7 +726,7 @@ func blockOnCtx(ctx context.Context) ([]byte, error) {
 	}
 }
 
-func TestPdftocairoTransparentPNG(t *testing.T) { // AC39
+func TestPdftocairoTransparentPNG(t *testing.T) {
 	latexEnv(t)
 	calls := fakeTeX(t, texFake{})
 	img := renderLatex(newLatexApp(t, 0), "\\[ x \\]", 10*time.Second)
@@ -753,7 +753,7 @@ func TestPdftocairoTransparentPNG(t *testing.T) { // AC39
 	mustPicture(t, img)
 }
 
-func TestLatexErrorFirstLogLine(t *testing.T) { // AC54
+func TestLatexErrorFirstLogLine(t *testing.T) {
 	latexEnv(t)
 	log := "This is pdfTeX, Version 3.141592653\n" +
 		"! Undefined control sequence.\n" +
@@ -775,7 +775,7 @@ func TestLatexErrorFirstLogLine(t *testing.T) { // AC54
 	}
 }
 
-func TestLatexRenderTimeoutDefault10s(t *testing.T) { // AC31
+func TestLatexRenderTimeoutDefault10s(t *testing.T) {
 	latexEnv(t)
 	timeout := time.Duration(config.DefaultPrefs().RenderTimeout) * time.Second
 	calls := fakeTeX(t, texFake{render: func(ctx context.Context, _ string) ([]byte, error) {
@@ -799,7 +799,7 @@ func TestLatexRenderTimeoutDefault10s(t *testing.T) { // AC31
 	}
 }
 
-func TestLatexRenderTimeoutConfigured(t *testing.T) { // AC32
+func TestLatexRenderTimeoutConfigured(t *testing.T) {
 	latexEnv(t)
 	calls := fakeTeX(t, texFake{render: func(ctx context.Context, _ string) ([]byte, error) {
 		return blockOnCtx(ctx)
@@ -822,7 +822,7 @@ func TestLatexRenderTimeoutConfigured(t *testing.T) { // AC32
 	}
 }
 
-func TestPdftocairoTimeoutFallsBack(t *testing.T) { // AC34
+func TestPdftocairoTimeoutFallsBack(t *testing.T) {
 	latexEnv(t)
 	calls := fakeTeX(t, texFake{cairo: blockOnCtx})
 	start := time.Now()
@@ -843,7 +843,7 @@ func TestPdftocairoTimeoutFallsBack(t *testing.T) { // AC34
 	}
 }
 
-func TestLatexPNGWrittenToDiskCache(t *testing.T) { // AC43
+func TestLatexPNGWrittenToDiskCache(t *testing.T) {
 	_, texDir := latexEnv(t)
 	fakeTeX(t, texFake{})
 	mustPicture(t, renderLatex(newLatexApp(t, 0), "\\[ x \\]", 10*time.Second))
@@ -852,7 +852,7 @@ func TestLatexPNGWrittenToDiskCache(t *testing.T) { // AC43
 	}
 }
 
-func TestLatexDiskCacheHitSkipsPdftex(t *testing.T) { // AC44
+func TestLatexDiskCacheHitSkipsPdftex(t *testing.T) {
 	_, texDir := latexEnv(t)
 	fakeTeX(t, texFake{})
 	mustPicture(t, renderLatex(newLatexApp(t, 0), "\\[ x \\]", 10*time.Second))
@@ -867,7 +867,7 @@ func TestLatexDiskCacheHitSkipsPdftex(t *testing.T) { // AC44
 	mustPicture(t, img)
 }
 
-func TestLatexRebuildsAfterCacheDeleted(t *testing.T) { // AC46
+func TestLatexRebuildsAfterCacheDeleted(t *testing.T) {
 	_, texDir := latexEnv(t)
 	fakeTeX(t, texFake{})
 	mustPicture(t, renderLatex(newLatexApp(t, 0), "\\[ x \\]", 10*time.Second))
@@ -889,7 +889,7 @@ func TestLatexRebuildsAfterCacheDeleted(t *testing.T) { // AC46
 	}
 }
 
-// --- Step 5: failure memo — a timeout is retried, a TeX error is reused ---
+// --- failure memo: a timeout is retried, a TeX error is reused ---
 
 // showLatex is one show of a latex block through the in-memory picture
 // cache: nil while the background render runs, then its result.
@@ -908,7 +908,7 @@ func nextRender(done chan string, d time.Duration) bool {
 	}
 }
 
-func TestFormatTimeoutIsRetried(t *testing.T) { // AC82
+func TestFormatTimeoutIsRetried(t *testing.T) {
 	latexEnv(t)
 	calls := fakeTeX(t, texFake{build: blockOnCtx})
 	a := newLatexApp(t, 0)
@@ -972,7 +972,7 @@ func timedOutNote(t *testing.T, tool string, fake texFake, runs func([]texCall) 
 	return a, done, calls, src
 }
 
-func TestLatexRenderTimeoutIsRetried(t *testing.T) { // AC83
+func TestLatexRenderTimeoutIsRetried(t *testing.T) {
 	for _, tc := range timeoutCases() {
 		t.Run(tc.tool, func(t *testing.T) {
 			a, done, calls, src := timedOutNote(t, tc.tool, tc.fake, tc.runs, false)
@@ -986,7 +986,7 @@ func TestLatexRenderTimeoutIsRetried(t *testing.T) { // AC83
 	}
 }
 
-func TestLatexTimeoutForgottenByOpenNoteQuiet(t *testing.T) { // AC83
+func TestLatexTimeoutForgottenByOpenNoteQuiet(t *testing.T) {
 	for _, tc := range timeoutCases() {
 		t.Run(tc.tool, func(t *testing.T) {
 			a, done, calls, src := timedOutNote(t, tc.tool, tc.fake, tc.runs, true)
@@ -1000,7 +1000,7 @@ func TestLatexTimeoutForgottenByOpenNoteQuiet(t *testing.T) { // AC83
 	}
 }
 
-func TestSingleLineBracketRendersThroughPdftex(t *testing.T) { // AC86
+func TestSingleLineBracketRendersThroughPdftex(t *testing.T) {
 	latexEnv(t)
 	calls := fakeTeX(t, texFake{})
 	a, done := newNoteApp(t, "latex", "kitty")
@@ -1012,7 +1012,7 @@ func TestSingleLineBracketRendersThroughPdftex(t *testing.T) { // AC86
 	}
 	body := renderInput(t, got)
 	// The body starts after the \begin{document} line, which also carries
-	// the theme's \color (AC23).
+	// the theme's \color.
 	begin, end := strings.Index(body, `\begin{document}`), strings.LastIndex(body, `\end{document}`)
 	nl := -1
 	if begin >= 0 {
@@ -1026,7 +1026,7 @@ func TestSingleLineBracketRendersThroughPdftex(t *testing.T) { // AC86
 	}
 }
 
-func TestFormatTexErrorIsReused(t *testing.T) { // AC84
+func TestFormatTexErrorIsReused(t *testing.T) {
 	latexEnv(t)
 	log := "This is pdfTeX, Version 3.141592653\n" +
 		"! LaTeX Error: File `nosuch.sty' not found.\n" +
@@ -1052,7 +1052,7 @@ func TestFormatTexErrorIsReused(t *testing.T) { // AC84
 	}
 }
 
-func TestLatexRenderTexErrorIsReused(t *testing.T) { // AC85
+func TestLatexRenderTexErrorIsReused(t *testing.T) {
 	latexEnv(t)
 	log := "This is pdfTeX, Version 3.141592653\n" +
 		"! Undefined control sequence.\n" +
@@ -1080,7 +1080,7 @@ func TestLatexRenderTexErrorIsReused(t *testing.T) { // AC85
 	}
 }
 
-// --- Step 8a: crop display PNGs to their ink ---
+// --- crop display PNGs to their ink ---
 
 // inkPNG is a w×h transparent PNG with each rect filled opaque white.
 func inkPNG(t *testing.T, w, h int, ink ...image.Rectangle) []byte {
@@ -1124,7 +1124,7 @@ func inkBox(img image.Image) image.Rectangle {
 	return box
 }
 
-func TestCropToInk(t *testing.T) { // AC88
+func TestCropToInk(t *testing.T) {
 	const border = 8
 	cases := []struct {
 		name         string
@@ -1195,7 +1195,7 @@ func TestCropToInk(t *testing.T) { // AC88
 	}
 }
 
-func TestLatexKeyVersionedForCrop(t *testing.T) { // AC88
+func TestLatexKeyVersionedForCrop(t *testing.T) {
 	_, texDir := latexEnv(t)
 	if _, err := ensurePreamble(); err != nil {
 		t.Fatal(err)

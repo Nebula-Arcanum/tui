@@ -118,12 +118,11 @@ func assertSnippet(t *testing.T, buf *noteBuffer, want string) {
 	}
 }
 
-// AC60
 func TestSnippetBracketClosesUnderLatex(t *testing.T) {
 	assertSnippet(t, typeLineAndEnter(t, "latex", `\[`), "\\[\n\n\\]")
 }
 
-// AC60 as typed: auto-pairing leaves \[] with the cursor before the ],
+// As typed: auto-pairing leaves \[] with the cursor before the ],
 // and Enter must still give \[ … \] instead of a stray ].
 func TestTypedBracketClosesOnEnterUnderLatex(t *testing.T) {
 	for _, typed := range []string{`\[`, `\begin{align}`} {
@@ -147,7 +146,6 @@ func TestTypedBracketClosesOnEnterUnderLatex(t *testing.T) {
 	}
 }
 
-// AC61
 func TestSnippetBeginClosesAnyEnvironment(t *testing.T) {
 	for _, env := range []string{"align", "foo*"} {
 		t.Run(env, func(t *testing.T) {
@@ -157,12 +155,10 @@ func TestSnippetBeginClosesAnyEnvironment(t *testing.T) {
 	}
 }
 
-// AC62
 func TestSnippetDollarUnchangedUnderLatex(t *testing.T) {
 	assertSnippet(t, typeLineAndEnter(t, "latex", "$$"), "$$\n\n$$")
 }
 
-// AC63
 func TestSnippetTypstUnchangedAndNoBracket(t *testing.T) {
 	assertSnippet(t, typeLineAndEnter(t, "typst", "$$"), "$$\n\n$$")
 	for _, line := range []string{`\[`, `\begin{align}`} {
@@ -173,7 +169,7 @@ func TestSnippetTypstUnchangedAndNoBracket(t *testing.T) {
 	}
 }
 
-// AC60/AC61: a closer that already follows is not added a second time.
+// A closer that already follows is not added a second time.
 func TestSnippetLatexSkipsExistingCloser(t *testing.T) {
 	for _, body := range []string{"\\[\n\\]", "\\begin{align}\n\\end{align}"} {
 		a, _ := newFeatureTestApp(t)

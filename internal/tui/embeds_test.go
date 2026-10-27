@@ -192,7 +192,7 @@ func assertMathBodyLexed(t *testing.T, spans map[int][]codeSpan, lines []string,
 	}
 }
 
-func TestHighlightDollarBodyWithTexUnderLatex(t *testing.T) { // AC56
+func TestHighlightDollarBodyWithTexUnderLatex(t *testing.T) {
 	lines := []string{"Some prose", "", "$$", `\frac{a}{b} + x_1 = 2`, "$$", "", "after"}
 	spans := highlightFences(lines, "gruvbox", "latex")
 	assertMathBodyLexed(t, spans, lines, 2, 4, "tex", "typst")
@@ -201,7 +201,7 @@ func TestHighlightDollarBodyWithTexUnderLatex(t *testing.T) { // AC56
 	}
 }
 
-func TestHighlightBracketBlockWithTex(t *testing.T) { // AC57
+func TestHighlightBracketBlockWithTex(t *testing.T) {
 	lines := []string{"Some prose", "", `\[`, `\alpha^2 + \beta = 3`, `\]`, "", "after"}
 	spans := highlightFences(lines, "gruvbox", "latex")
 	assertMathBodyLexed(t, spans, lines, 2, 4, "tex", "typst")
@@ -210,7 +210,7 @@ func TestHighlightBracketBlockWithTex(t *testing.T) { // AC57
 	}
 }
 
-func TestHighlightEnvironmentWithTex(t *testing.T) { // AC58
+func TestHighlightEnvironmentWithTex(t *testing.T) {
 	lines := []string{"Some prose", "", `\begin{align}`, `a &= \sqrt{b} \\`, `c &= \frac{d}{e}`, `\end{align}`, "", "after"}
 	spans := highlightFences(lines, "gruvbox", "latex")
 	assertMathBodyLexed(t, spans, lines, 2, 5, "tex", "typst")
@@ -329,7 +329,7 @@ func TestPreviewRendersEmbedsAsCardsAndDiagrams(t *testing.T) {
 	}
 }
 
-// --- Step 3: shared runner with timeout and the shared render pool ---
+// --- shared runner with timeout and the shared render pool ---
 
 // TestHelperSleep is the child process for TestRunToolKillsProcessAfterTimeout.
 // With ZN_HELPER_SLEEP=1 it starts a grandchild that holds its output pipe
@@ -362,7 +362,7 @@ func TestRunToolKillsProcessAfterTimeout(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "timed out") {
 		t.Fatalf("want a timed out error, got %v", err)
 	}
-	// AC82, AC83: a timeout must be told apart from a tool error.
+	// A timeout must be told apart from a tool error.
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("timeout error %v does not match context.DeadlineExceeded", err)
 	}
@@ -504,7 +504,7 @@ func isPicture(lines []previewLine) bool {
 	return strings.Contains(joinPreview(lines), "\U0010EEEE")
 }
 
-func TestTypstRenderUsesUnchangedArgs(t *testing.T) { // AC2
+func TestTypstRenderUsesUnchangedArgs(t *testing.T) {
 	prefs := config.DefaultPrefs()
 	prefs.TerminalMath = "typst"
 	a, done := newRenderTestApp(t, prefs, "typst")
@@ -528,7 +528,7 @@ func TestTypstRenderUsesUnchangedArgs(t *testing.T) { // AC2
 	}
 }
 
-func TestTypstTimeoutFallsBackToRawSource(t *testing.T) { // AC35
+func TestTypstTimeoutFallsBackToRawSource(t *testing.T) {
 	prefs := config.DefaultPrefs()
 	prefs.TerminalMath = "typst"
 	prefs.RenderTimeout = 1
@@ -552,7 +552,7 @@ func TestTypstTimeoutFallsBackToRawSource(t *testing.T) { // AC35
 	}
 }
 
-func TestMermaidTimeoutFallsBackToText(t *testing.T) { // AC36
+func TestMermaidTimeoutFallsBackToText(t *testing.T) {
 	prefs := config.DefaultPrefs()
 	prefs.RenderTimeout = 1
 	a, done := newRenderTestApp(t, prefs, "mmdc")
@@ -577,7 +577,7 @@ func TestMermaidTimeoutFallsBackToText(t *testing.T) { // AC36
 	}
 }
 
-func TestTypstErrorShowsRawSourceOnly(t *testing.T) { // AC55
+func TestTypstErrorShowsRawSourceOnly(t *testing.T) {
 	src := "$$\nx^2 + \\foo\n$$"
 	t.Run("compile error", func(t *testing.T) {
 		prefs := config.DefaultPrefs()
@@ -635,12 +635,12 @@ func inFlight() (func(context.Context) ([]byte, error), func() int) {
 	}
 }
 
-func TestRenderPoolCapsConcurrency(t *testing.T) { // AC47, AC48
+func TestRenderPoolCapsConcurrency(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		cap  int // 0 keeps the default
 		want int
-	}{{"default 2 (AC47)", 0, 2}, {"configured 4 (AC48)", 4, 4}} {
+	}{{"default 2", 0, 2}, {"configured 4", 4, 4}} {
 		t.Run(tc.name, func(t *testing.T) {
 			prefs := config.DefaultPrefs()
 			prefs.TerminalMath = "typst"
@@ -661,7 +661,7 @@ func TestRenderPoolCapsConcurrency(t *testing.T) { // AC47, AC48
 	}
 }
 
-func TestRenderPoolSharedByMermaidAndMath(t *testing.T) { // AC49
+func TestRenderPoolSharedByMermaidAndMath(t *testing.T) {
 	prefs := config.DefaultPrefs()
 	prefs.TerminalMath = "typst"
 	prefs.RenderConcurrency = 1
@@ -679,11 +679,11 @@ func TestRenderPoolSharedByMermaidAndMath(t *testing.T) { // AC49
 	}
 }
 
-// --- Step 6: the math engine wired into the reading view ---
+// --- the math engine wired into the reading view ---
 //
 // These drive `$$` blocks through mathLines (and whole notes through the
 // preview renderers), with pdftex and pdftocairo faked by fakeTeX and typst
-// by fakeTypst. Block detection for \[…\] and environments is Step 7.
+// by fakeTypst. Block detection for \[…\] and environments is tested further down.
 
 // fakeTypst wraps the current runTool: typst runs succeed and write their
 // PNG, every other tool goes to the wrapped fake. It returns the typst run
@@ -784,15 +784,15 @@ func preambleExists() bool {
 	return err == nil
 }
 
-func TestMathEngineRouting(t *testing.T) { // AC1, AC2, AC3, AC4
+func TestMathEngineRouting(t *testing.T) {
 	for _, tc := range []struct {
 		name, terminal string
 		latex          bool
 	}{
-		{"no math key (AC1)", "images = \"kitty\"\n", false},
-		{"typst (AC2)", "math = \"typst\"\nimages = \"kitty\"\n", false},
-		{"latex (AC3)", "math = \"latex\"\nimages = \"kitty\"\n", true},
-		{"unknown foo (AC4)", "math = \"foo\"\nimages = \"kitty\"\n", false},
+		{"no math key", "images = \"kitty\"\n", false},
+		{"typst", "math = \"typst\"\nimages = \"kitty\"\n", false},
+		{"latex", "math = \"latex\"\nimages = \"kitty\"\n", true},
+		{"unknown foo", "math = \"foo\"\nimages = \"kitty\"\n", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			latexEnv(t)
@@ -838,7 +838,7 @@ func TestMathEngineRouting(t *testing.T) { // AC1, AC2, AC3, AC4
 	}
 }
 
-func TestLatexImagesOffShowsSourceWithoutPdftex(t *testing.T) { // AC14
+func TestLatexImagesOffShowsSourceWithoutPdftex(t *testing.T) {
 	for _, images := range []string{"off", "auto"} {
 		t.Run(images, func(t *testing.T) {
 			latexEnv(t)
@@ -862,7 +862,7 @@ func TestLatexImagesOffShowsSourceWithoutPdftex(t *testing.T) { // AC14
 	}
 }
 
-func TestNoPreambleWithoutDisplayMath(t *testing.T) { // AC17
+func TestNoPreambleWithoutDisplayMath(t *testing.T) {
 	latexEnv(t)
 	calls := fakeTeX(t, texFake{})
 	a, _ := newDatabaseTestApp(t)
@@ -882,7 +882,7 @@ func TestNoPreambleWithoutDisplayMath(t *testing.T) { // AC17
 	}
 }
 
-func TestNoPreambleUnderTypst(t *testing.T) { // AC18
+func TestNoPreambleUnderTypst(t *testing.T) {
 	latexEnv(t)
 	addTool(t, "typst")
 	fakeTeX(t, texFake{})
@@ -897,9 +897,9 @@ func TestNoPreambleUnderTypst(t *testing.T) { // AC18
 	}
 }
 
-func TestMathKeyChangesWithEngineThemeAndPreamble(t *testing.T) { // AC40, AC41, AC42
+func TestMathKeyChangesWithEngineThemeAndPreamble(t *testing.T) {
 	body := "$$\nx^2\n$$"
-	t.Run("engine (AC40)", func(t *testing.T) {
+	t.Run("engine", func(t *testing.T) {
 		latexEnv(t)
 		addTool(t, "typst")
 		calls := fakeTeX(t, texFake{})
@@ -914,7 +914,7 @@ func TestMathKeyChangesWithEngineThemeAndPreamble(t *testing.T) { // AC40, AC41,
 			t.Fatalf("the same block under latex after typst: %d pdftex renders, want 1 (typst entry reused)", n)
 		}
 	})
-	t.Run("theme (AC41)", func(t *testing.T) {
+	t.Run("theme", func(t *testing.T) {
 		latexEnv(t)
 		calls := fakeTeX(t, texFake{})
 		a, done := newMathApp(t, mathPrefs("latex", "kitty"))
@@ -936,7 +936,7 @@ func TestMathKeyChangesWithEngineThemeAndPreamble(t *testing.T) { // AC40, AC41,
 			t.Fatalf("second render does not use the new theme colour %s:\n%s", hex, r[1].allTeX())
 		}
 	})
-	t.Run("preamble (AC42)", func(t *testing.T) {
+	t.Run("preamble", func(t *testing.T) {
 		latexEnv(t)
 		calls := fakeTeX(t, texFake{})
 		a, done := newMathApp(t, mathPrefs("latex", "kitty"))
@@ -957,7 +957,7 @@ func TestMathKeyChangesWithEngineThemeAndPreamble(t *testing.T) { // AC40, AC41,
 	})
 }
 
-func TestTypstWritesNothingUnderTexCache(t *testing.T) { // AC45
+func TestTypstWritesNothingUnderTexCache(t *testing.T) {
 	_, texDir := latexEnv(t)
 	addTool(t, "typst")
 	fakeTeX(t, texFake{})
@@ -978,7 +978,7 @@ func TestTypstWritesNothingUnderTexCache(t *testing.T) { // AC45
 	}
 }
 
-func TestLatexMissingToolsFallBack(t *testing.T) { // AC52, AC53
+func TestLatexMissingToolsFallBack(t *testing.T) {
 	for _, missing := range []string{"pdftex", "pdftocairo"} {
 		t.Run("no "+missing, func(t *testing.T) {
 			latexEnv(t)
@@ -996,7 +996,7 @@ func TestLatexMissingToolsFallBack(t *testing.T) { // AC52, AC53
 	}
 }
 
-func TestLatexErrorRowAboveSource(t *testing.T) { // AC20, AC27, AC54
+func TestLatexErrorRowAboveSource(t *testing.T) {
 	// wantRow checks that the block is not a picture and that a row holding
 	// msg sits above the row holding the block's source.
 	wantRow := func(t *testing.T, lines []previewLine, msg, src string) {
@@ -1010,7 +1010,7 @@ func TestLatexErrorRowAboveSource(t *testing.T) { // AC20, AC27, AC54
 			t.Fatalf("want a %q row above the source %q, got:\n%s", msg, src, all)
 		}
 	}
-	t.Run("LaTeX error (AC54)", func(t *testing.T) {
+	t.Run("LaTeX error", func(t *testing.T) {
 		latexEnv(t)
 		log := "This is pdfTeX, Version 3.141592653\n! Undefined control sequence.\nl.3 \\nosuchmacro\n! Emergency stop.\n"
 		fakeTeX(t, texFake{render: func(_ context.Context, base string) ([]byte, error) {
@@ -1024,7 +1024,7 @@ func TestLatexErrorRowAboveSource(t *testing.T) { // AC20, AC27, AC54
 			t.Fatalf("error row is not only the first TeX error line: %s", joinPreview(lines))
 		}
 	})
-	t.Run("broken preamble (AC27)", func(t *testing.T) {
+	t.Run("broken preamble", func(t *testing.T) {
 		latexEnv(t)
 		if err := os.WriteFile(config.PreamblePath(), []byte("\\usepackage{amsmath}\n\\badmacro\n"), 0o644); err != nil {
 			t.Fatal(err)
@@ -1042,7 +1042,7 @@ func TestLatexErrorRowAboveSource(t *testing.T) { // AC20, AC27, AC54
 			wantRow(t, showMath(a, done, b.body, 5*time.Second), "! Undefined control sequence.", b.src)
 		}
 	})
-	t.Run("unwritable config dir (AC20)", func(t *testing.T) {
+	t.Run("unwritable config dir", func(t *testing.T) {
 		if runtime.GOOS == "windows" {
 			t.Skip("read-only directories via chmod are not enforced on windows")
 		}
@@ -1060,7 +1060,7 @@ func TestLatexErrorRowAboveSource(t *testing.T) { // AC20, AC27, AC54
 	})
 }
 
-func TestZenStyleLeavesDollarBlockUnrendered(t *testing.T) { // AC81
+func TestZenStyleLeavesDollarBlockUnrendered(t *testing.T) {
 	body := "# Doc\n\nBefore.\n\n$$\nx^2 + y^2\n$$\n\nAfter.\n"
 	for _, engine := range []string{"typst", "latex"} {
 		t.Run(engine, func(t *testing.T) {
@@ -1101,7 +1101,7 @@ func TestZenStyleLeavesDollarBlockUnrendered(t *testing.T) { // AC81
 	}
 }
 
-// --- Step 7: block detection for \[…\] and the AC7 environments ---
+// --- block detection for \[…\] and the display environments ---
 
 // blockKinds is splitBlocks' result as "kind[start,end)" entries.
 func blockKinds(src string, latex bool) []string {
@@ -1159,23 +1159,23 @@ func sameLines(t *testing.T, got, want []previewLine) {
 	}
 }
 
-// latexDisplaySources is one block-level source per AC6/AC7 form.
+// latexDisplaySources is one block-level source per detected form.
 func latexDisplaySources() map[string]string {
-	srcs := map[string]string{"\\[ \\] (AC6)": "\\[\nx^2 + y^2\n\\]"}
+	srcs := map[string]string{"\\[ \\]": "\\[\nx^2 + y^2\n\\]"}
 	for _, env := range []string{"equation", "align", "gather", "multline", "alignat", "flalign", "eqnarray"} {
 		for _, name := range []string{env, env + "*"} {
 			begin := "\\begin{" + name + "}"
 			if env == "alignat" {
 				begin += "{2}"
 			}
-			srcs[name+" (AC7)"] = begin + "\na &= b + c\n\\end{" + name + "}"
+			srcs[name+""] = begin + "\na &= b + c\n\\end{" + name + "}"
 		}
 	}
-	srcs["tikzpicture (AC7)"] = "\\begin{tikzpicture}\n\\draw (0,0) -- (1,1);\n\\end{tikzpicture}"
+	srcs["tikzpicture"] = "\\begin{tikzpicture}\n\\draw (0,0) -- (1,1);\n\\end{tikzpicture}"
 	return srcs
 }
 
-func TestSplitBlocksLatexDisplay(t *testing.T) { // AC6, AC7
+func TestSplitBlocksLatexDisplay(t *testing.T) {
 	for name, src := range latexDisplaySources() {
 		t.Run(name, func(t *testing.T) {
 			n := strings.Count(src, "\n") + 1
@@ -1208,7 +1208,7 @@ func TestSplitBlocksLatexDisplay(t *testing.T) { // AC6, AC7
 	}
 }
 
-func TestSplitBlocksLatexInsideFenceIsCode(t *testing.T) { // AC8
+func TestSplitBlocksLatexInsideFenceIsCode(t *testing.T) {
 	for name, src := range latexDisplaySources() {
 		t.Run(name, func(t *testing.T) {
 			note := "Before.\n\n```latex\n" + src + "\n```\n\nAfter."
@@ -1227,7 +1227,7 @@ func TestSplitBlocksLatexInsideFenceIsCode(t *testing.T) { // AC8
 	}
 }
 
-func TestSplitBlocksDollarBlockOwnsEnvironment(t *testing.T) { // AC9
+func TestSplitBlocksDollarBlockOwnsEnvironment(t *testing.T) {
 	for _, env := range []string{"align", "equation*", "tikzpicture"} {
 		t.Run(env, func(t *testing.T) {
 			note := "$$\n\\begin{" + env + "}\na &= b\n\\end{" + env + "}\n$$"
@@ -1246,7 +1246,7 @@ func TestSplitBlocksDollarBlockOwnsEnvironment(t *testing.T) { // AC9
 	}
 }
 
-func TestSplitBlocksLatexNestedInListQuoteCallout(t *testing.T) { // AC10
+func TestSplitBlocksLatexNestedInListQuoteCallout(t *testing.T) {
 	nest := map[string]func(src string) string{
 		"list": func(src string) string {
 			return "- item\n  " + strings.ReplaceAll(src, "\n", "\n  ")
@@ -1259,7 +1259,7 @@ func TestSplitBlocksLatexNestedInListQuoteCallout(t *testing.T) { // AC10
 		},
 	}
 	srcs := latexDisplaySources()
-	for _, name := range []string{"\\[ \\] (AC6)", "align* (AC7)", "tikzpicture (AC7)"} {
+	for _, name := range []string{"\\[ \\]", "align*", "tikzpicture"} {
 		for where, wrap := range nest {
 			t.Run(where+" "+name, func(t *testing.T) {
 				note := "Before.\n\n" + wrap(srcs[name]) + "\n\nAfter."
@@ -1279,7 +1279,7 @@ func TestSplitBlocksLatexNestedInListQuoteCallout(t *testing.T) { // AC10
 	}
 }
 
-func TestSplitBlocksSingleLineBracket(t *testing.T) { // AC86
+func TestSplitBlocksSingleLineBracket(t *testing.T) {
 	for _, tc := range []struct{ note, want string }{
 		{"text\n\\[ x^2 \\]\nmore", "para[0,1) tex[1,2) para[2,3)"},
 		{"text\n\n\\[ x^2 \\]\n\nmore", "para[0,1) blank[1,2) tex[2,3) blank[3,4) para[4,5)"},
@@ -1303,7 +1303,7 @@ func TestSplitBlocksSingleLineBracket(t *testing.T) { // AC86
 	}
 }
 
-func TestSplitBlocksTypstLeavesLatexAsText(t *testing.T) { // AC11
+func TestSplitBlocksTypstLeavesLatexAsText(t *testing.T) {
 	// Block kinds as splitBlocks returned them before this change.
 	for _, tc := range []struct{ note, want string }{
 		{"Before.\n\n\\[\nx^2\n\\]\n\nAfter.", "para[0,1) blank[1,2) para[2,5) blank[5,6) para[6,7)"},
@@ -1337,7 +1337,7 @@ func TestSplitBlocksTypstLeavesLatexAsText(t *testing.T) { // AC11
 
 // Under latex a ```tikz fence renders through pdftex instead, as on the
 // desktop (TestTikzFenceRendersThroughLatex); it is a fence block either way.
-func TestTikzFenceStaysCodeBlockUnderTypst(t *testing.T) { // AC12
+func TestTikzFenceStaysCodeBlockUnderTypst(t *testing.T) {
 	note := "Before.\n\n```tikz\n\\begin{tikzpicture}\n\\draw (0,0) -- (1,1);\n\\end{tikzpicture}\n```\n\nAfter."
 	if got, want := strings.Join(blockKinds(note, true), " "), "para[0,1) blank[1,2) fence[2,7) blank[7,8) para[8,9)"; got != want {
 		t.Fatalf("latex blocks %q, want %q", got, want)
@@ -1360,7 +1360,7 @@ func TestTikzFenceStaysCodeBlockUnderTypst(t *testing.T) { // AC12
 	sameLines(t, lines, beforeChange(t, note))
 }
 
-func TestInlineMathUnchangedUnderLatex(t *testing.T) { // AC13
+func TestInlineMathUnchangedUnderLatex(t *testing.T) {
 	note := "Inline $x^2$ and $\\alpha + \\beta$ in a line.\n\nAnd \\(y\\) too.\n"
 	if hasTexBlock(note, true) {
 		t.Fatalf("inline math detected as a tex block: %v", blockKinds(note, true))

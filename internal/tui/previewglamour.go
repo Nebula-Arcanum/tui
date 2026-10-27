@@ -105,9 +105,9 @@ var (
 	texEnvRe      = regexp.MustCompile(`^ {0,3}\\begin\{((?:equation|align|gather|multline|alignat|flalign|eqnarray)\*?|tikzpicture)\}`)
 )
 
-// texBlockEnd returns one past the last line of a block-level \[…\] or AC7
-// environment that starts at line i, or -1 when none starts there or it is
-// never closed, so an unclosed opener stays text.
+// texBlockEnd returns one past the last line of a block-level \[…\] or
+// display environment (texEnvRe) that starts at line i, or -1 when none
+// starts there or it is never closed, so an unclosed opener stays text.
 func texBlockEnd(lines []string, i int) int {
 	if texLineRe.MatchString(lines[i]) {
 		return i + 1
@@ -134,7 +134,7 @@ func texBlockEnd(lines []string, i int) int {
 }
 
 // splitBlocks walks the source lines and groups them into blocks. With
-// latex, block-level \[…\] and the AC7 environments become "tex" blocks.
+// latex, block-level \[…\] and the display environments become "tex" blocks.
 func splitBlocks(lines []string, latex bool) []mdBlock {
 	blocks := []mdBlock{}
 	i := 0

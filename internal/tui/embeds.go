@@ -524,7 +524,7 @@ func (a *App) externalImage(key string, maxCols int, kind, src string) *termImag
 		img := a.renderEmbed(key, req)
 		d.mu.Lock()
 		// A timeout is stored like any failure, so a redraw does not loop;
-		// opening a note drops it via forgetEmbedTimeouts (AC83).
+		// opening a note drops it via forgetEmbedTimeouts.
 		d.png[key] = img
 		delete(d.inFly, key)
 		d.mu.Unlock()
@@ -534,7 +534,7 @@ func (a *App) externalImage(key string, maxCols int, kind, src string) *termImag
 }
 
 // forgetEmbedTimeouts drops every timed-out render, so the next show of
-// its block renders again. Called when a note is opened (AC83).
+// its block renders again. Called when a note is opened.
 func (a *App) forgetEmbedTimeouts() {
 	d := a.diagrams()
 	d.mu.Lock()
