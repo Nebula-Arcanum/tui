@@ -368,8 +368,9 @@ mouse = true
 # [appearance], so the terminal matches the desktop app.
 theme = ""
 # math = typst | latex: the engine for display math in the preview. latex
-# needs pdftex (TeX Live or MacTeX) and pdftocairo (poppler) on PATH, and
-# reads its packages from preamble.tex next to this file.
+# runs TeX on this computer, which zn does not include: install pdftex
+# (TeX Live, MacTeX or MiKTeX) and pdftocairo (poppler) yourself; zn doctor
+# prints the commands. Its packages come from preamble.tex next to this file.
 math = "typst"
 # Seconds one diagram or math render may take, and how many run at once.
 render_timeout = 10

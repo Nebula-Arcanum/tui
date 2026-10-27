@@ -31,12 +31,14 @@ class Zn < Formula
 
   def caveats
     <<~EOS
-      zn renders display math with typst by default. With math = "latex" under
-      [terminal] in config.toml, it needs pdftex and pdftocairo on PATH. A
-      basic TeX Live is enough, plus poppler and the packages zn uses:
+      zn renders display math with typst by default. To draw LaTeX math instead
+      (math = "latex" under [terminal] in config.toml), zn runs pdftex and
+      pdftocairo installed on your computer; it does not include TeX. On macOS:
+        brew install --cask basictex
         brew install poppler
-        tlmgr install standalone varwidth preview xcolor amsmath amsfonts mhchem pgf
-      Add other packages with tlmgr later, as your preamble.tex needs them.
+        sudo tlmgr install standalone varwidth preview xcolor amsmath amsfonts mhchem pgf
+      On Linux, install your distribution's TeX Live and poppler packages.
+      Run zn doctor to check; it prints the commands for your system.
     EOS
   end
 

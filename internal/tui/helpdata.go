@@ -174,7 +174,7 @@ func helpLines(a *App, filter string) []string {
 		"[terminal] theme\tA theme for zn alone, when the terminal should not match the desktop app",
 		":style <name|path|zen>\tReading view style: auto (zennotes, matches the palette), dark, light, dracula, tokyo-night, pink, ascii, notty, a Glamour JSON file, or the built-in zen renderer",
 		"[terminal] preview_style\tThe same setting in config.toml, next to mouse = true|false",
-		"[terminal] math\tEngine for display math: typst (default) or latex, which also renders \\[ \\], align and tikzpicture blocks and ```tikz fences; it needs pdftex (a basic TeX Live plus the packages the README lists) and pdftocairo (poppler); packages come from preamble.tex next to config.toml. Leave latex off for vaults you do not trust: a note can show any file you can read",
+		"[terminal] math\tEngine for display math: typst (default) or latex. latex runs TeX on this computer, which zn does not include: install pdftex (TeX Live, MacTeX or MiKTeX) and pdftocairo (poppler) yourself; zn doctor prints the commands for your system. It renders $$, \\[ \\], align and tikzpicture blocks and ```tikz fences, with packages from preamble.tex next to config.toml. Leave latex off for vaults you do not trust: a note can show any file you can read",
 		"[terminal] render_timeout\tSeconds one diagram or math render may take (default 10); render_concurrency caps how many run at once (default 2, after a restart)",
 		"",
 		"## Preview mode",

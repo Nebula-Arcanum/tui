@@ -65,6 +65,10 @@ different connection and sync options.
 
 `zn` is a single static binary with no runtime dependencies. Pick one:
 
+> One optional feature is the exception: drawing LaTeX math as pictures
+> (`math = "latex"`) runs TeX installed on your own computer, and zn does not
+> include it. See [LaTeX math needs TeX on your computer](#latex-math-needs-tex-on-your-computer).
+
 **Homebrew (macOS and Linux).** Install from the same tap as the desktop app:
 
 ```bash
@@ -624,30 +628,84 @@ sheet of your own, or `zen` for the built-in renderer).
 - **`![[Note]]`** renders the note inline.
 - **Mermaid** blocks draw as text through a pure-Go renderer, or as
   pictures when `mmdc` is installed.
-- **`[terminal] math`** picks the engine for display math. `typst`, the
-  default, renders `$$` blocks when `typst` is installed. `latex` also renders
-  `\[ \]`, `tikzpicture` and the amsmath display environments (`equation`,
-  `align`, `gather`, `multline` and the rest, starred or not), and ` ```tikz `
-  fences the way the desktop app draws them (`\usepackage` and
-  `\usetikzlibrary` lines above the picture are kept). It needs `pdftex` and
-  `pdftocairo` (poppler) on PATH; `zn doctor` names a missing one. A basic TeX
-  Live is enough: add the packages zn uses with
-  `tlmgr install standalone varwidth preview xcolor amsmath amsfonts mhchem pgf`
-  (or your distribution's TeX packages), and others later as your preamble
-  needs them. Packages come from `preamble.tex` next to `config.toml`, written
-  on the first render with `amsmath`, `amssymb`, `mhchem` and `tikz` with the
-  TikZ libraries the desktop loads (`arrows.meta`, `calc`, `positioning`,
-  `shapes`, `decorations.pathreplacing`, `intersections`, `patterns`); zn
-  never rewrites it. The desktop also loads `pgfplots` and `circuitikz` when a
-  fence uses them; for those, install them and add them to `preamble.tex`.
-  Pictures are cached in the user cache directory under `zn/tex`; zn deletes
-  the pictures and formats there that it has not used for 30 days. TeX can
-  read files by absolute path, so under `latex` a note can show in the preview
-  the contents of any file you can read. Leave latex off for vaults you do not
-  trust.
+- **`[terminal] math`** picks the engine for display math: `typst`, the
+  default, renders `$$` blocks when `typst` is installed; `latex` uses TeX on
+  your computer (next section).
 - **`render_timeout`** (seconds, default 10) bounds one diagram or math
   render; **`render_concurrency`** (default 2) caps how many run at once and
   takes effect after a restart.
+
+### LaTeX math needs TeX on your computer
+
+**zn does not include TeX.** `math = "latex"` runs two programs you install
+yourself: `pdftex`, from a TeX distribution (TeX Live, MacTeX, MiKTeX), and
+`pdftocairo`, from poppler. Until both are on your PATH, LaTeX blocks show
+their source and the preview says which one is missing. `zn doctor` checks for
+them and prints the install commands for your system.
+
+macOS, with Homebrew:
+
+```bash
+brew install --cask basictex
+brew install poppler
+eval "$(/usr/libexec/path_helper)"    # or open a new terminal
+sudo tlmgr update --self
+sudo tlmgr install standalone varwidth preview xcolor amsmath amsfonts mhchem pgf
+```
+
+Debian and Ubuntu:
+
+```bash
+sudo apt install texlive-latex-extra texlive-science texlive-pictures poppler-utils
+```
+
+Fedora:
+
+```bash
+sudo dnf install texlive-scheme-basic texlive-standalone texlive-varwidth texlive-preview texlive-xcolor texlive-amsmath texlive-amsfonts texlive-mhchem texlive-pgf poppler-utils
+```
+
+Arch:
+
+```bash
+sudo pacman -S texlive-basic texlive-latex texlive-latexextra texlive-science texlive-pictures poppler
+```
+
+Windows: install [MiKTeX](https://miktex.org), which fetches missing LaTeX
+packages on first use, and poppler for `pdftocairo`, for example with
+`scoop install poppler`.
+
+Then turn it on in `config.toml` (or under `:settings`) and check:
+
+```toml
+[terminal]
+math = "latex"
+```
+
+```bash
+zn doctor
+```
+
+Pictures need a terminal that shows images (Kitty, Ghostty); others show the
+source.
+
+What it draws: `$$` and `\[ \]` blocks, `tikzpicture` blocks, the amsmath
+display environments (`equation`, `align`, `gather`, `multline` and the rest,
+starred or not), and ` ```tikz ` fences the way the desktop app draws them
+(`\usepackage` and `\usetikzlibrary` lines above the picture are kept).
+Packages come from `preamble.tex` next to `config.toml`, written on the first
+render with `amsmath`, `amssymb`, `mhchem` and `tikz` with the TikZ libraries
+the desktop loads (`arrows.meta`, `calc`, `positioning`, `shapes`,
+`decorations.pathreplacing`, `intersections`, `patterns`); zn never rewrites
+it, so add your own packages there (and install them with your TeX
+distribution). The desktop also loads `pgfplots` and `circuitikz` when a fence
+uses them; for those, install them and add them to `preamble.tex`.
+
+Pictures are cached in the user cache directory under `zn/tex`; zn deletes
+the pictures and formats there that it has not used for 30 days. TeX can read
+files by absolute path, so under `latex` a note can show in the preview the
+contents of any file you can read. Leave latex off for vaults you do not
+trust.
 
 ### Vaults and servers inside the app
 

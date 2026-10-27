@@ -91,3 +91,54 @@ func TestDoctorTypstNeverMentionsTexTools(t *testing.T) {
 		}
 	}
 }
+
+// A failed latex check carries this system's install steps, and doctor
+// prints them under the check.
+func TestDoctorLatexPrintsInstallSteps(t *testing.T) {
+	out, checks := doctorWithTools(t, `math = "latex"`)
+	c := latexToolsCheck(t, checks, out)
+	if c.OK || len(c.Hint) == 0 {
+		t.Fatalf("missing tools gave no install steps: %+v", c)
+	}
+	if !strings.Contains(c.Message, "zn does not include them") {
+		t.Fatalf("message does not say zn ships no TeX: %q", c.Message)
+	}
+	isolatedCLI(t)
+	text := captureOutput(t, func() {
+		_ = os.MkdirAll(filepath.Dir(config.ConfigTomlPath()), 0o755)
+		_ = os.WriteFile(config.ConfigTomlPath(), []byte("[terminal]\nmath = \"latex\"\n"), 0o644)
+		t.Setenv("PATH", t.TempDir())
+		_ = Main([]string{"doctor"})
+	})
+	if !strings.Contains(text, "      "+c.Hint[0]) {
+		t.Fatalf("doctor did not print the install steps under the check:\n%s", text)
+	}
+}
+
+func TestDoctorLatexWithToolsHasNoInstallSteps(t *testing.T) {
+	out, checks := doctorWithTools(t, `math = "latex"`, "pdftex", "pdftocairo")
+	if c := latexToolsCheck(t, checks, out); !c.OK || len(c.Hint) != 0 {
+		t.Fatalf("tools present, yet: %+v", c)
+	}
+}
+
+func TestLatexInstallHintPerSystem(t *testing.T) {
+	for _, tc := range []struct{ goos, distro, want string }{
+		{"darwin", "", "brew install --cask basictex"},
+		{"darwin", "", "sudo tlmgr install " + latexPackages},
+		{"linux", "ubuntu debian", "sudo apt install texlive-latex-extra"},
+		{"linux", "pop ubuntu debian", "sudo apt install"},
+		{"linux", "debian", "poppler-utils"},
+		{"linux", "fedora", "sudo dnf install texlive-scheme-basic"},
+		{"linux", "rocky rhel centos fedora", "sudo dnf install"},
+		{"linux", "manjaro arch", "sudo pacman -S texlive-basic"},
+		{"linux", "opensuse-tumbleweed opensuse suse", "packages " + latexPackages},
+		{"linux", "", "poppler for pdftocairo"},
+		{"windows", "", "MiKTeX"},
+		{"freebsd", "", "TeX Live"},
+	} {
+		if got := strings.Join(latexInstallHint(tc.goos, tc.distro), "\n"); !strings.Contains(got, tc.want) {
+			t.Errorf("%s %q: hint lacks %q:\n%s", tc.goos, tc.distro, tc.want, got)
+		}
+	}
+}

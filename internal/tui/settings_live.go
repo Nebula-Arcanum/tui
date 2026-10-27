@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/x/editor"
 	"os"
 	"reflect"
+	"strings"
 	"time"
 )
 
@@ -29,6 +30,11 @@ func (a *App) applyPreferences(p config.Prefs) {
 	}
 	a.prefs = prefsView{Prefs: p, TabsOff: !p.TabsEnabled}
 	a.rawPref = p
+	if old.TerminalMath != "latex" && p.TerminalMath == "latex" {
+		if missing := missingLatexTools(); len(missing) > 0 {
+			a.notifyError("math = latex needs " + strings.Join(missing, " and ") + " installed on this computer; zn does not include them. Run zn doctor for the install steps.")
+		}
+	}
 	a.keymap = keymaps.NewResolver(p.KeymapOverrides)
 	if err := a.setTheme(sel); err != nil || selErr != nil {
 		a.notifyError(errors.Join(selErr, err).Error())

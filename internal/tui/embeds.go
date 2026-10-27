@@ -495,14 +495,49 @@ func (a *App) fitted(key string, img *termImage, maxCols int) *termImage {
 
 // latexErrorRows is the first line of a failed latex render, wrapped rather
 // than truncated because the cause sits at the end of long paths. A render
-// that worked, is still running or lacks its tools has none.
+// that worked or is still running has none. Missing tools get the install
+// notice instead, once per note.
 func (a *App) latexErrorRows(img *termImage, srcLine, width int) []previewLine {
-	if img == nil || img.err == nil || errors.Is(img.err, exec.ErrNotFound) {
+	if img == nil || img.err == nil {
 		return nil
+	}
+	if errors.Is(img.err, exec.ErrNotFound) {
+		return a.latexToolsNotice(srcLine, width)
 	}
 	out := []previewLine{}
 	for _, row := range wrapCommentText(firstLine(img.err.Error()), width-2) {
 		out = append(out, previewLine{text: " " + a.theme.StatusError.Render(row), srcLine: srcLine})
+	}
+	return out
+}
+
+// missingLatexTools names the tools math = "latex" runs that are not on
+// PATH, with where each comes from.
+func missingLatexTools() []string {
+	missing := []string{}
+	for _, tool := range []struct{ name, from string }{{"pdftex", "TeX Live or MacTeX"}, {"pdftocairo", "poppler"}} {
+		if _, err := exec.LookPath(tool.name); err != nil {
+			missing = append(missing, tool.name+" ("+tool.from+")")
+		}
+	}
+	return missing
+}
+
+// latexToolsNotice tells the reader, above the first LaTeX block of a note,
+// that math = "latex" runs TeX installed on this machine and which part is
+// missing. zn ships no TeX, and without this the blocks just show their
+// source with no hint why. Later blocks of the same note stay quiet.
+func (a *App) latexToolsNotice(srcLine, width int) []previewLine {
+	missing := missingLatexTools()
+	if a.latexNoticeShown || len(missing) == 0 {
+		return nil
+	}
+	a.latexNoticeShown = true
+	style := lipgloss.NewStyle().Foreground(a.theme.Accent)
+	text := "LaTeX math needs " + strings.Join(missing, " and ") + " installed on this computer; zn does not include them. Run zn doctor for the install steps."
+	out := []previewLine{}
+	for _, row := range wrapCommentText(text, width-2) {
+		out = append(out, previewLine{text: " " + style.Render(row), srcLine: srcLine})
 	}
 	return out
 }

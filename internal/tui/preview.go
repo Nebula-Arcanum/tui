@@ -475,6 +475,7 @@ func (a *App) previewLinesFor(t *tab, buf *noteBuffer, width int) []previewLine 
 	if pv.cache == nil || pv.cache.version != buf.ed.Version() || pv.cache.width != width || pv.cache.style != style || pv.cache.dark != a.theme.Dark {
 		var lines []previewLine
 		a.previewPath = buf.path
+		a.latexNoticeShown = false
 		if strings.EqualFold(style, "zen") {
 			lines = a.renderPreviewLines(buf.ed.Text(), width)
 		} else {

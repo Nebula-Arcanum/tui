@@ -143,6 +143,9 @@ type App struct {
 	assetPaths          map[string]string
 	previewDepth        int
 	previewPath         string
+	// latexNoticeShown is set once the current preview render has shown the
+	// missing-TeX notice, so only a note's first LaTeX block carries it.
+	latexNoticeShown bool
 
 	systemDark        bool
 	exHistory         []string
