@@ -217,8 +217,10 @@ func TestRealFormatReusedAcrossApps(t *testing.T) { // AC25
 	if err != nil {
 		t.Fatalf("format gone after later renders: %v", err)
 	}
-	if !after.ModTime().Equal(before.ModTime()) || !os.SameFile(before, after) {
-		t.Fatalf("format rebuilt: mtime %v -> %v", before.ModTime(), after.ModTime())
+	// A rebuild renames a new file into place; the later session only
+	// touches the one it reuses, so the mtime moves and the file does not.
+	if !os.SameFile(before, after) {
+		t.Fatalf("format rebuilt: %s is a new file", fmts[0])
 	}
 	if got := fmtFiles(t, texDir); len(got) != 1 {
 		t.Fatalf("want still one format, got %v", got)

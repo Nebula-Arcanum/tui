@@ -1334,3 +1334,76 @@ func TestTikzDocumentNormalisesLikeTheDesktop(t *testing.T) {
 		})
 	}
 }
+
+func TestPruneLatexCacheDropsWhatNoRenderUsed(t *testing.T) {
+	dir := t.TempDir()
+	now := time.Now()
+	age := func(name string, d time.Duration, isDir bool) {
+		p := filepath.Join(dir, name)
+		var err error
+		if isDir {
+			err = os.Mkdir(p, 0o755)
+		} else {
+			err = os.WriteFile(p, []byte("x"), 0o644)
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chtimes(p, now.Add(-d), now.Add(-d)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	day := 24 * time.Hour
+	age("zn-old.fmt", 40*day, false)
+	age("zn-cur.fmt", time.Minute, false)
+	age("old.png", 40*day, false)
+	age("new.png", day, false)
+	age("build-dead", 2*time.Hour, true)
+	age("png-dead", 2*time.Hour, false)
+	age("build-live", time.Minute, true)
+	age("notes.txt", 40*day, false)
+	pruneLatexCache(dir, now)
+	left := []string{}
+	entries, _ := os.ReadDir(dir)
+	for _, e := range entries {
+		left = append(left, e.Name())
+	}
+	if got, want := strings.Join(left, " "), "build-live new.png notes.txt zn-cur.fmt"; got != want {
+		t.Fatalf("left %q, want %q", got, want)
+	}
+}
+
+func TestLatexRenderTouchesWhatItUses(t *testing.T) {
+	_, texDir := latexEnv(t)
+	fakeTeX(t, texFake{})
+	if img := renderLatex(newLatexApp(t, 0), `\[ x \]`, 10*time.Second); failed(img) {
+		t.Fatalf("render: %v", imgErr(img))
+	}
+	old := time.Now().Add(-40 * 24 * time.Hour)
+	files := append(fmtFiles(t, texDir), pngFiles(texDir)...)
+	if len(files) != 2 {
+		t.Fatalf("want one format and one PNG, got %v", files)
+	}
+	for _, f := range files {
+		if err := os.Chtimes(f, old, old); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// A new session reads the cached PNG, then renders another block on the
+	// same format.
+	a := newLatexApp(t, 0)
+	for _, src := range []string{`\[ x \]`, `\[ y \]`} {
+		if img := renderLatex(a, src, 10*time.Second); failed(img) {
+			t.Fatalf("render %s: %v", src, imgErr(img))
+		}
+	}
+	for _, f := range files {
+		info, err := os.Stat(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if time.Since(info.ModTime()) > time.Hour {
+			t.Errorf("%s was used but not touched, so the prune would delete it", filepath.Base(f))
+		}
+	}
+}

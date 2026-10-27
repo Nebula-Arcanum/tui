@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/ZenNotes/tui/internal/config"
 )
@@ -230,6 +231,8 @@ func (l *latexFormats) ensure(ctx context.Context, texDir, name, src string) err
 		l.mu.Unlock()
 		if !fileExists(path) {
 			b.err = buildFormat(ctx, texDir, name, src)
+		} else {
+			touch(path)
 		}
 		if errors.Is(b.err, context.DeadlineExceeded) {
 			l.mu.Lock()
@@ -262,6 +265,49 @@ func isClosed(c chan struct{}) bool {
 func fileExists(p string) bool {
 	_, err := os.Stat(p)
 	return err == nil
+}
+
+// touch marks a cached file as used now, so pruneLatexCache keeps it.
+func touch(p string) {
+	now := time.Now()
+	_ = os.Chtimes(p, now, now)
+}
+
+// latexCacheMaxAge is how long a format or a picture may go unused before
+// pruneLatexCache deletes it. Every session touches the format it uses and
+// every picture it reads, so only leftovers age: the format of a preamble
+// since edited (a few MB each) and the PNGs of formulas since changed.
+const latexCacheMaxAge = 30 * 24 * time.Hour
+
+var latexPruneOnce sync.Once
+
+// pruneLatexCache deletes the formats and pictures in texDir that no render
+// has used for latexCacheMaxAge, and what renders that died midway left
+// behind. Another zn with another preamble keeps its format by touching it.
+// A file that cannot be deleted (open in another zn on Windows) is tried
+// again next session.
+func pruneLatexCache(texDir string, now time.Time) {
+	entries, err := os.ReadDir(texDir)
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		info, err := e.Info()
+		if err != nil {
+			continue
+		}
+		name, age := e.Name(), now.Sub(info.ModTime())
+		switch {
+		case strings.HasSuffix(name, ".fmt") || strings.HasSuffix(name, ".png"):
+			if age > latexCacheMaxAge {
+				_ = os.Remove(filepath.Join(texDir, name))
+			}
+		case strings.HasPrefix(name, "build-") || strings.HasPrefix(name, "png-"):
+			if age > time.Hour {
+				_ = os.RemoveAll(filepath.Join(texDir, name))
+			}
+		}
+	}
 }
 
 // buildFormat dumps the wrapper and preamble into a format in a temp dir
@@ -375,11 +421,14 @@ func latexPNG(ctx context.Context, formats *latexFormats, kind, src, fg string) 
 	name := latexFormatName(preamble)
 	cached := filepath.Join(texDir, strings.TrimPrefix(latexKey(fg, name, latexKeySrc(kind, src)), "math:")+".png")
 	if b, err := os.ReadFile(cached); err == nil {
+		touch(cached)
 		return b, nil
 	}
 	if err := formats.ensure(ctx, texDir, name, fmtSrc); err != nil {
 		return nil, err
 	}
+	// After ensure, which touched this session's format.
+	latexPruneOnce.Do(func() { go pruneLatexCache(texDir, time.Now()) })
 	dir, err := os.MkdirTemp("", "zn-latex")
 	if err != nil {
 		return nil, err
