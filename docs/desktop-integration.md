@@ -79,6 +79,12 @@ again before every tool call and follows a desktop switch once `vault_info`
 confirms it. Until then every other tool stops with a message naming the old and
 new workspace, so a switch never redirects in-flight edits.
 
+`zn mcp --allow-path`, `--deny-path`, `--read-only` and `--access` (ZenNotes/tui#21)
+apply to whichever workspace the server follows. Entries are vault-relative, so a
+switch applies the same paths to the new vault; a `--deny-path` the new vault does
+not have shares nothing there. The desktop's bundled MCP server does not take these
+flags yet; until it does, a client that needs a scope must launch `zn mcp`.
+
 ## Creation dates
 
 Linux reads filesystem birth time using `statx` where supported; ctime is only a

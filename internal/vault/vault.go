@@ -578,6 +578,14 @@ func (v *Vault) CreateNote(folder NoteFolder, title, subpath string, body *strin
 // follows when SyncTitleHeading is on, and every `[[wikilink]]` in the vault
 // that resolved to the note is rewritten to the new name.
 func (v *Vault) RenameNote(rel, nextTitle string) (NoteMeta, error) {
+	return v.RenameNoteRewritingLinksIn(rel, nextTitle, nil)
+}
+
+// RenameNoteRewritingLinksIn is RenameNote with the inbound link rewrite
+// limited to the notes rewrite accepts; nil accepts every note. A scoped MCP
+// client renames this way so its rename never writes into notes it cannot
+// see (ZenNotes/tui#21).
+func (v *Vault) RenameNoteRewritingLinksIn(rel, nextTitle string, rewrite func(path string) bool) (NoteMeta, error) {
 	oldRel := NormalizeRelPath(rel)
 	notesBefore, _ := v.ListNotes()
 	meta, err := v.renameNoteFile(rel, nextTitle)
@@ -585,7 +593,7 @@ func (v *Vault) RenameNote(rel, nextTitle string) (NoteMeta, error) {
 		return NoteMeta{}, err
 	}
 	if meta.Path != oldRel {
-		v.rewriteInboundWikilinks(notesBefore, oldRel, meta.Title)
+		v.rewriteInboundWikilinks(notesBefore, oldRel, meta.Title, rewrite)
 	}
 	return meta, nil
 }
@@ -649,9 +657,12 @@ func (v *Vault) syncTitleHeading(sourceAbs, targetAbs, title string) {
 	}
 }
 
-func (v *Vault) rewriteInboundWikilinks(notesBefore []NoteMeta, oldPath, newTitle string) {
+func (v *Vault) rewriteInboundWikilinks(notesBefore []NoteMeta, oldPath, newTitle string, rewrite func(path string) bool) {
 	for _, n := range notesBefore {
 		if n.Path == oldPath || n.Folder == FolderTrash {
+			continue
+		}
+		if rewrite != nil && !rewrite(n.Path) {
 			continue
 		}
 		linksToIt := false

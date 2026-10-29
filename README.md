@@ -954,6 +954,60 @@ zn connect https://notes.example.com --no-default
 `--no-default` saves the token without making the server zn's own default,
 so zn keeps following the app.
 
+### Scoped access
+
+By default an MCP client sees the whole vault. Flags on `zn mcp` narrow what it
+can see and change, and the server enforces them on every tool (listings,
+search, tags, tasks, backlinks, assets, comments, error messages), so hidden
+notes cannot be found indirectly:
+
+```bash
+zn mcp --allow-path Projects --allow-path Areas/Health --deny-path Projects/Clients --read-only
+```
+
+```json
+{ "mcpServers": { "zennotes": { "command": "zn", "args": ["mcp", "--allow-path", "Projects", "--read-only"] } } }
+```
+
+| Flag | Meaning |
+|------|---------|
+| `--allow-path <path>` | Share only this folder or note, and what is inside it. Repeat for more. Without it, the whole vault is shared. |
+| `--deny-path <path>` | Hide this folder or note even inside an allowed one. Repeat for more. |
+| `--read-only` | Read tools only: no tool that creates, edits, moves or deletes is offered. Same as `--access read`. |
+| `--access read\|comment\|write` | `comment` adds the comment tools to the read tools; `write` (the default) is everything the paths allow. |
+
+Paths are vault-relative, as the tools report them (`Projects` in a root-mode
+vault, `inbox/Projects` in an inbox-mode one, remapped system folders under
+their own names), and a leading `/` is fine. A path matches the folder and
+everything below it, never a sibling that merely starts with the same letters.
+
+What the client gets:
+
+- A hidden note answers exactly like a missing one (`Note not found: <path>`).
+  Paths through a symlink, case variants of a hidden folder and the internal
+  `.zennotes` directory do not exist for it, and its errors and `vault_info`
+  never show the vault's absolute location.
+- Tools it cannot use are not listed at all. `empty_trash` is never offered
+  once paths are restricted, since it deletes every trashed note.
+- Notes can be created, moved and restored only inside allowed folders.
+  Archiving and trashing a visible note are allowed even when the archive or
+  trash is not shared; the note then leaves what the client sees.
+- Renaming a note rewrites `[[links]]` only in notes the client can see. On a
+  ZenNotes server, which rewrites links in every note itself, a scoped client
+  cannot rename notes.
+- A folder is renamed or deleted as a whole only when nothing inside it is
+  hidden.
+- A `--deny-path` that matches nothing in the vault (renamed outside ZenNotes,
+  or meant for another vault) shares nothing at all until it is fixed, so a
+  rename can never quietly expose what it hid. The MCP server's stderr, which
+  clients keep in their logs, names the entry.
+
+The scope governs the ZenNotes tools only. An assistant that can also run
+commands or read files (Claude Code, Codex, OpenCode) can still read the vault
+from disk. The design, including what comes next (per-vault profiles chosen
+from the desktop app), is in
+[`docs/ideas/mcp-scoped-access.md`](docs/ideas/mcp-scoped-access.md).
+
 ## Layout of the code
 
 ```

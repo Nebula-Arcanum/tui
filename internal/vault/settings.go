@@ -367,6 +367,22 @@ func SystemFolderForDirName(name string, paths map[string]string) (NoteFolder, b
 	return "", false
 }
 
+// IsReservedRootName reports whether a top-level name is kept out of the
+// root-mode note tree: an asset or internal directory, or the resolved
+// directory of any system folder. Case-insensitive, unlike the walkers'
+// exact skip list, because it guards names a client typed: on a
+// case-insensitive volume `Attachements/` is the attachments directory.
+func IsReservedRootName(name string, paths map[string]string) bool {
+	lower := strings.ToLower(name)
+	for reserved := range reservedNonSystemRootNames {
+		if strings.ToLower(reserved) == lower {
+			return true
+		}
+	}
+	_, system := SystemFolderForDirName(name, paths)
+	return system
+}
+
 // --- tasks folder lists (mirrors shared-domain/tasks-excluded-folders.ts) ---
 // The excluded folders (#458) and the Task folders (#962) share one set of
 // validation rules; keep them byte-compatible with the desktop and the server.
