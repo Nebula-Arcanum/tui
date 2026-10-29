@@ -218,7 +218,7 @@ func helpLines(a *App, filter string) []string {
 		"i / Enter\tEdit the cell, type-aware: pickers for select, multi-select and note links (Tab toggles, Enter commits), toggles a checkbox, date shorthand for dates",
 		"[[ in a text cell\tLink a note from the cell",
 		"x / Ctrl+A / Esc\tSelect the row, select every row, clear the selection",
-		"a / dd / D\tAdd a row; delete the selected rows (or the current one); duplicate the row",
+		"a / dd / D\tAdd a row (in a view that shows picked rows, it joins them); delete the selected rows (or the current one); duplicate the row",
 		"m\tRow menu: open page, duplicate, delete, copy as CSV",
 		"o\tOpen (or create) the record's page; Ctrl+O comes back",
 		"k (into the header) / Esc\tEnter and leave the header row",

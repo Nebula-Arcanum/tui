@@ -91,7 +91,7 @@ var helpSections = []helpSection{
 		{"base create <title>", "Create an empty database", "--folder <f/sub>  --json"},
 		{"base rows <base>", "List a database’s rows (title or path picks the base)", "--json"},
 		{"base get <base> <row>", "One row by id or title value", "--json"},
-		{"base add <base>", "Add a row; --body (or --body - for stdin) also creates its record page", "--set Field=Value …  --body <text|->  --page  --json"},
+		{"base add <base>", "Add a row; --body (or --body - for stdin) also creates its record page. When the view the database opens on shows picked rows, the row joins them", "--set Field=Value …  --body <text|->  --page  --json"},
 		{"base set <base> <row>", "Set fields; select options mint, the page re-mirrors", "--set Field=Value …  --json"},
 		{"base convert <base>", "Turn a loose .csv into a .base folder so rows can have record pages", "--json"},
 		{"base pages <base>", "Give every record without one its record page, so each can be linked", "--dry-run  --json"},

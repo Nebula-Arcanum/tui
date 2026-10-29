@@ -932,8 +932,15 @@ func (v *databaseView) addRow(a *App) {
 			groupID, groupValue = v.board.group.ID, key
 		}
 	}
+	viewID := ""
+	if view := v.activeView(); view != nil {
+		viewID = view.ID
+	}
 	a.promptFor("New row", "", "Title", func(a *App, text string) {
-		row := v.doc.AddRow()
+		// As + Row does in the app's grid: in a view that shows picked rows
+		// the new row joins its picks, or the app would leave it out of the
+		// view it was added in. Other views keep their picks.
+		row, _ := v.doc.AddRowInView(viewID)
 		if titleID != "" {
 			v.doc.SetCell(row.ID, titleID, strings.TrimSpace(text))
 		}

@@ -1,8 +1,10 @@
 package tui
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -321,5 +323,109 @@ func TestOpenRecordPageLinksAPageFileAlreadyThere(t *testing.T) {
 	}
 	if kept, _ := os.ReadFile(filepath.Join(root, "Books.base", "Dune.md")); string(kept) != notes {
 		t.Fatalf("the page changed: %q", kept)
+	}
+}
+
+// As + Row does in the app's grid, a row added while a view with picked
+// rows is on screen joins that view's picks, or the app would leave it out
+// of the view it was added in. Other views keep their picks, and a view of
+// every row changes nothing.
+func TestAddRowJoinsThePicksOfTheViewOnScreen(t *testing.T) {
+	a, root := newDatabaseTestApp(t)
+	v := openTestDatabase(t, a)
+	ids := map[string]string{}
+	for _, row := range v.doc.Rows {
+		ids[v.doc.RecordTitle(row)] = row.ID
+	}
+	sidecarPath := filepath.Join(root, "Books.csv.base.json")
+	raw, err := os.ReadFile(sidecarPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sidecar, err := database.ParseObject(string(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	views := []any{}
+	for _, spec := range []string{
+		`{"id":"shelf","name":"Shelf","type":"table","filters":[],"sorts":[],"pickedRowIds":["` + ids["Dune"] + `"]}`,
+		`{"id":"all","name":"All","type":"table","filters":[],"sorts":[]}`,
+		`{"id":"later","name":"Later","type":"table","filters":[],"sorts":[],"pickedRowIds":["` + ids["Neuromancer"] + `"]}`,
+	} {
+		view, err := database.ParseObject(spec)
+		if err != nil {
+			t.Fatal(err)
+		}
+		views = append(views, view)
+	}
+	sidecar.Set("views", views)
+	sidecar.Set("activeViewId", "shelf")
+	text, err := database.Stringify(sidecar)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(sidecarPath, []byte(text+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	v.refresh(a)
+	v.render(a, 100, 20, true)
+
+	add := func(title string) string {
+		t.Helper()
+		v.handleKey(a, vim.R('a'))
+		typeText(a, title)
+		a.overlay.handleKey(a, enterKey())
+		for _, row := range v.doc.Rows {
+			if v.doc.RecordTitle(row) == title {
+				return row.ID
+			}
+		}
+		t.Fatalf("a did not add %q", title)
+		return ""
+	}
+	onDisk := func() map[string][]string {
+		t.Helper()
+		raw, err := os.ReadFile(sidecarPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var schema struct {
+			Views []struct {
+				ID           string    `json:"id"`
+				PickedRowIDs *[]string `json:"pickedRowIds"`
+			} `json:"views"`
+		}
+		if err := json.Unmarshal(raw, &schema); err != nil {
+			t.Fatal(err)
+		}
+		out := map[string][]string{}
+		for _, view := range schema.Views {
+			if view.PickedRowIDs != nil {
+				out[view.ID] = *view.PickedRowIDs
+			}
+		}
+		return out
+	}
+
+	if v.activeView().ID != "shelf" {
+		t.Fatalf("opened on %q", v.activeView().ID)
+	}
+	ulysses := add("Ulysses")
+	want := map[string][]string{"shelf": {ids["Dune"], ulysses}, "later": {ids["Neuromancer"]}}
+	if got := onDisk(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("after an add on Shelf: %v", got)
+	}
+
+	v.switchView(a, "later")
+	emma := add("Emma")
+	want["later"] = []string{ids["Neuromancer"], emma}
+	if got := onDisk(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("after an add on Later: %v", got)
+	}
+
+	v.switchView(a, "all")
+	add("Persuasion")
+	if got := onDisk(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("an add on a view of every row changed picks: %v", got)
 	}
 }

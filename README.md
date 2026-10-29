@@ -244,7 +244,10 @@ zn base pages "Reading list"
 Use the stable ID returned by `task list` with `task toggle <id>`. Comment
 replies and resolve/reopen operations take a thread ID. `base add` and
 `base set` accept repeated `--set Field=Value` flags for existing fields;
-`base add --body` or `--page` also creates a record page. `base convert`
+`base add --body` or `--page` also creates a record page. When the view a
+database opens on shows only picked rows, `base add` adds the new row to
+them, as + Row does in the app, so the view still shows it; other views keep
+their picks, and `--json` names the view in `pickedInView`. `base convert`
 turns a loose CSV into a `.base` folder, and `base pages` gives every
 record that has no page its record page, so a database converted from a
 CSV can be linked right away. A page file already in the database folder
