@@ -989,9 +989,11 @@ What the client gets:
   never show the vault's absolute location.
 - Tools it cannot use are not listed at all. `empty_trash` is never offered
   once paths are restricted, since it deletes every trashed note.
-- Notes can be created, moved and restored only inside allowed folders.
-  Archiving and trashing a visible note are allowed even when the archive or
-  trash is not shared; the note then leaves what the client sees.
+- Notes can be created, moved and restored only inside allowed folders, and
+  never through a symbolic link (which the listings skip, so it would otherwise
+  look like a new folder). Archiving and trashing a visible note are allowed
+  even when the archive or trash is not shared; the note then leaves what the
+  client sees.
 - Renaming a note rewrites `[[links]]` only in notes the client can see. On a
   ZenNotes server, which rewrites links in every note itself, a scoped client
   cannot rename notes.

@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -69,6 +71,10 @@ type scopeView struct {
 	deny         []string
 	missingAllow []string
 	ancestors    map[string]bool
+
+	// root is the vault on this machine, where destinations are checked on
+	// disk; "" for a server's, whose walker is its own.
+	root string
 }
 
 func notFound(rel string) error     { return fmt.Errorf("Note not found: %s", rel) }
@@ -109,6 +115,9 @@ func (sb *scopedBackend) build(ctx context.Context) (*scopeView, error) {
 		folders:       map[string]vault.FolderEntry{},
 		allFolders:    folders,
 		ancestors:     map[string]bool{},
+	}
+	if sb.inner.Kind() == backend.KindLocal {
+		v.root = sb.inner.Root()
 	}
 	for _, f := range vault.AllFolders {
 		if dir := v.bucketDir(f); dir != "" {
@@ -321,17 +330,28 @@ func (v *scopeView) destination(folder vault.NoteFolder, rawSub string) (string,
 	}
 	// Existing folders keep their spelling; new segments are created as given.
 	spelled := bucket
+	firstNew := ""
 	if sub != "" {
 		for _, seg := range strings.Split(sub, "/") {
 			next := joinRel(spelled, seg)
 			if s, ok := spell(next, v.dirs); ok {
 				next = s
+			} else if firstNew == "" {
+				firstNew = next
 			}
 			spelled = next
 		}
 	}
 	if !v.visible(spelled) {
 		return "", v.createRefusal()
+	}
+	// A segment the listings do not know is new only when nothing is there.
+	// The walks skip symbolic links, so `Projects/inner -> ../Journal` reads
+	// as missing, and creating through it would write into the hidden folder.
+	if firstNew != "" && v.root != "" {
+		if _, err := os.Lstat(filepath.Join(v.root, filepath.FromSlash(firstNew))); !errors.Is(err, fs.ErrNotExist) {
+			return "", v.createRefusal()
+		}
 	}
 	if bucket == "" {
 		return spelled, nil
