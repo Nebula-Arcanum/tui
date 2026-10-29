@@ -1004,6 +1004,11 @@ What the client gets:
   rename can never quietly expose what it hid. The MCP server's stderr, which
   clients keep in their logs, names the entry.
 
+The desktop app's bundled MCP server takes the same flags and gives the same
+answers (the shared fixture `internal/mcp/testdata/mcp-scope.json` holds both to
+it), with one difference: it never rewrites inbound links on a rename, scoped or
+not, so a rename through it leaves every other note as it was.
+
 The scope governs the ZenNotes tools only. An assistant that can also run
 commands or read files (Claude Code, Codex, OpenCode) can still read the vault
 from disk. The design, including what comes next (per-vault profiles chosen

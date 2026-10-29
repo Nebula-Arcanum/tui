@@ -1,8 +1,9 @@
 # Scoped access for the MCP servers (ZenNotes/tui#21)
 
-> Status: design accepted 2026-10-29 (section 12). Phase 0 is in progress in its own session.
-> Phase 1a (Go, flags only) is built on `feat/mcp-scoped-access`, uncommitted; section 13
-> records where the build differs from this design. Written 2026-10-29 for
+> Status: design accepted 2026-10-29 (section 12). Phase 0 is built in both repos. Phase 1a
+> (Go, flags only) is fbaf94c on `feat/mcp-scoped-access`; section 13 records where it
+> differs from this design. Phase 1b (the desktop's bundled server, the shared fixture) is
+> built, uncommitted; section 14 records it and a fix it made to both engines. Written 2026-10-29 for
 > [ZenNotes/tui#21](https://github.com/ZenNotes/tui/issues/21) (lewxdev). Covers both MCP
 > engines: the Go `zn mcp` in this repo and the TypeScript server the desktop app bundles
 > (`apps/desktop/src/mcp` in ZenNotes/zennotes). Decisions are at the end.
@@ -585,3 +586,62 @@ remote renames are refused under a path restriction rather than rewriting hidden
 
 Not in Phase 1a: the desktop engine (1b), profiles and the Settings UI (2), the shared
 fixture (lands with 1b, which owns the normative TS module).
+
+## 14. Phase 1b as built
+
+In ZenNotes/zennotes on `feat/mcp-scoped-access` (cut from `v2.80.0`, so on top of Phase 0)
+and here on top of fbaf94c, both uncommitted (2026-10-29):
+
+- `packages/shared-domain/src/mcp-scope.ts`, the normative module: flag parsing and entry
+  validation with zn's refusal bytes (Go's `%q` included), `foldMcpScopePath` (`search.Fold`,
+  lowered one code point at a time so JavaScript's final sigma does not apply), segment
+  matching, `MCP_TOOL_ACCESS` and the annotations, the access refusals, the instructions
+  paragraph, the `vault_info.access` block and code-point sorting.
+- `apps/desktop/src/mcp/scoped-backend.ts`: `ScopedBackend`, the `VaultBackend` decorator,
+  one per call, ported from `scoped.go`. `VaultBackend` gained `vaultLayout()` (system folder
+  paths and the primary location, local and remote), the classification input Go reads from
+  `VaultSettings`.
+- `server.ts`: tools a scope does not offer are not listed, every tool carries annotations
+  (`readOnlyHint` and `idempotentHint` spelled out even when false, as the Go SDK sends them),
+  the scoped `vault_info`, scrubbed errors, the instructions paragraph;
+  `callTool(name, args, backend, scope)` is the test seam.
+- Flags on the desktop's TS `zn mcp` (`read-only` joined `VALUELESS_FLAGS`, and the comment on
+  `valuelessFlags` here no longer calls it zn's own) and argv on the legacy `out/main/mcp.js`.
+  A bad entry stops either before it serves, with one line on stderr.
+- The contract fixture `packages/bridge-contract/fixtures/mcp-scope.json`: flag cases and tool
+  cases on three vaults (root mode with a link to a hidden folder and one out of the vault,
+  accented names, inbox mode with Inbox and Archive remapped), each checking the tools listed,
+  every call's result or exact error and the disk afterwards. The desktop runs it in
+  `apps/desktop/src/mcp/scope-contract.test.ts`, this repo in
+  `internal/mcp/scope_contract_test.go` from a copy with its `.source.json`;
+  `npm run sync:contract-fixtures -- --tui <checkout>` refreshes the copy.
+
+Found while building it, and fixed in both engines: a destination segment the listings do
+not know was taken as new. The listings skip symbolic links, so under `--allow-path Projects`,
+`create_note`, `create_folder`, `move_note` and `rename_folder` into `Projects/inner` (a link
+to the hidden `Journal`) wrote into `Journal`. On a vault on this machine, the first segment
+of a destination the listings do not know must now have nothing on disk (anything but "does
+not exist" refuses, with the usual refusal); fixture case `nothing-is-created-through-a-link`.
+A server's vault is left to the server's own walker.
+
+Engine differences that remain, left out of the fixture on purpose:
+
+- Renames: the desktop engine never rewrites inbound links, scoped or not, so decision 6
+  holds trivially there; zn rewrites them in the notes the client can see.
+- `list_assets`: zn lists every non-note file, the desktop engine the attachments folders
+  only. Both filter by visibility.
+- A tool the scope does not offer: zn answers with a JSON-RPC error (the SDK's unknown tool),
+  the desktop engine with an `isError` result `Unknown tool: X`, as each already did for any
+  unknown name.
+- A bad flag: zn and the desktop's `zn mcp` print `zn: <message>`, the legacy `mcp.js`
+  `[zennotes-mcp] <message>`.
+
+Pre-existing and unscoped, seen in the same probe: the wording of a missing file's error,
+`add_comment`'s author for a client neither engine knows (zn null, the desktop the client's
+name capitalised), and the desktop engine creating an archive or trash folder before it finds
+that the note to move is gone.
+
+Verified: both engines pass the fixture; the stdio parity probe (`probe_scoped.py`, in the
+session notes) gives identical transcripts for every scoped flag set on Go (fbaf94c plus the
+fix, with and without Phase 0 merged in) and on both TS entries, apart from the differences
+above. Not in 1b: profiles and the Settings UI (Phase 2).

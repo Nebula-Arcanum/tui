@@ -41,7 +41,7 @@ func startsAFlag(token string) bool {
 // and `zn delete --yes inbox/a.md` the same way. `--flag=value` still works
 // for all of them. The desktop CLI's parser (apps/desktop/src/cli/args.ts,
 // VALUELESS_FLAGS) holds the same list minus the switches only this CLI has
-// (no-default, no-edit, path, pretty, read-only). Keep the two in sync.
+// (no-default, no-edit, path, pretty). Keep the two in sync.
 var valuelessFlags = map[string]bool{
 	"all":              true,
 	"include-excluded": true,
