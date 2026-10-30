@@ -49,7 +49,7 @@ var helpSections = []helpSection{
 		{"duplicate <path>", "Copy a note next to itself", ""},
 	}},
 	{"SEARCH", []helpRow{
-		{"search <query>", "Full-text search across live notes", "--limit <n>  --json"},
+		{"search <query>", "Full-text search across live notes, the template folder left out", "--limit <n>  --json"},
 		{"search-title <q>", "Match notes by title (substring)", "--json"},
 		{"backlinks <path>", "Notes linking to this one via [[wikilink]]", "--json"},
 	}},
@@ -64,7 +64,7 @@ var helpSections = []helpSection{
 		{"tag find <tag>", "Notes carrying this #tag", "--limit <n>  --json"},
 	}},
 	{"TASKS", []helpRow{
-		{"task list", "Open checkbox tasks across all notes", "--unchecked  --all  --tag <t>  --include-excluded  --json"},
+		{"task list", "Open checkbox tasks across all notes but the template folder", "--unchecked  --all  --tag <t>  --include-excluded  --json"},
 		{"task toggle <id>", "Flip a task checkbox by stable id", ""},
 		{"task watch", "Print task status changes as they happen. A server that cannot push them is asked every --interval seconds (default 5)", "--interval <s>  --include-excluded  --json"},
 	}},
