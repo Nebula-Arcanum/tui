@@ -769,7 +769,7 @@ func tools() []toolDef {
 "tag":{"type":"string"},
 "folder":{"type":"string","enum":["inbox","quick","archive"]},
 "tags":{"type":"array","items":{"type":"string"},"description":"Alternative to tag: require ALL of these tags."},
-"includeExcluded":{"type":"boolean","description":"Also scan notes opted out of Tasks (frontmatter ` + "`tasks: false`" + ` / ` + "`tasks: note`" + `) and folders on the vault's excluded list. Default false: excluded tasks are invisible."}}}`,
+"includeExcluded":{"type":"boolean","description":"Also scan notes opted out of Tasks (frontmatter ` + "`tasks: false`" + ` / ` + "`tasks: note`" + `), folders on the vault's excluded list, its template folder, and notes outside its Task folders. Default false: excluded tasks are invisible."}}}`,
 			handler: func(ctx context.Context, a args, b Backend) (any, error) {
 				status, has, err := a.optionalString("status")
 				if err != nil {

@@ -87,7 +87,11 @@ type VaultSettings struct {
 	// TasksIncludedFolders, the Task folders (#962), narrow Tasks to the
 	// notes inside them. Empty means the whole vault.
 	TasksIncludedFolders []string
-	TypstPreambleFolder  string
+	// TemplateFolder is `templates.folder` (#1024), a vault-relative path as
+	// it is on disk; "" when the vault has none. Its notes stay out of Tasks
+	// and text search; see template_folder.go.
+	TemplateFolder      string
+	TypstPreambleFolder string
 	// Raw is the decoded file, kept so a targeted write can preserve every
 	// key this process does not model.
 	Raw map[string]any
@@ -188,6 +192,7 @@ func normalizeVaultSettings(raw map[string]any) VaultSettings {
 		s.TasksExcludedFolders = NormalizeTasksExcludedFolders(stringsOf(tasks["excludedFolders"]))
 		s.TasksIncludedFolders = NormalizeTasksExcludedFolders(stringsOf(tasks["includedFolders"]))
 	}
+	s.TemplateFolder = templateFolderOf(raw)
 	if typst := mapOf(raw["typstPreambles"]); typst != nil {
 		if folder := normalizeTypstPreambleFolder(stringOf(typst["folder"])); folder != "" {
 			s.TypstPreambleFolder = folder
@@ -497,18 +502,20 @@ func rewriteFolderKeyedMap(m map[string]any, folder NoteFolder, oldSub, newSub s
 // rewriteSettingsForFolderRename keeps vault.json's path-keyed settings naming
 // the same folders after a rename or move: the Tasks folder lists, which hold
 // vault-relative paths (mirrors rewriteTasksFoldersForRename in
-// tasks-excluded-folders.ts), and the folder icons and colors, keyed by bucket
-// and subpath, as desktop main and the server rewrite them. vault.json is
-// written only when an entry moves.
+// tasks-excluded-folders.ts), the template folder, another such path
+// (rewriteTemplateFolderForRename), and the folder icons and colors, keyed by
+// bucket and subpath, as desktop main and the server rewrite them. vault.json
+// is written only when an entry moves.
 func (v *Vault) rewriteSettingsForFolderRename(folder NoteFolder, oldSub, newSub, oldRel, newRel string) error {
 	if oldRel == "" || newRel == "" || oldRel == newRel {
 		return nil
 	}
 	s := v.Settings()
 	tasksMove := listHasFolder(s.TasksExcludedFolders, oldRel) || listHasFolder(s.TasksIncludedFolders, oldRel)
+	templateFolder := rewriteTemplateFolderForRename(s.TemplateFolder, oldRel, newRel)
 	_, iconsMove := rewriteFolderKeyedMap(mapOf(s.Raw["folderIcons"]), folder, oldSub, newSub)
 	_, colorsMove := rewriteFolderKeyedMap(mapOf(s.Raw["folderColors"]), folder, oldSub, newSub)
-	if !tasksMove && !iconsMove && !colorsMove {
+	if !tasksMove && templateFolder == s.TemplateFolder && !iconsMove && !colorsMove {
 		return nil
 	}
 	return v.UpdateSettings(func(raw map[string]any) {
@@ -518,6 +525,10 @@ func (v *Vault) rewriteSettingsForFolderRename(folder NoteFolder, oldSub, newSub
 					tasks[key] = rewriteFolderList(list, oldRel, newRel)
 				}
 			}
+		}
+		// Only the folder is replaced; anything else under `templates` stays.
+		if templates, _ := raw["templates"].(map[string]any); templates != nil && templateFolder != s.TemplateFolder {
+			templates["folder"] = templateFolder
 		}
 		for _, key := range []string{"folderIcons", "folderColors"} {
 			if next, changed := rewriteFolderKeyedMap(mapOf(raw[key]), folder, oldSub, newSub); changed {

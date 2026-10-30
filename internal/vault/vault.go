@@ -908,8 +908,8 @@ func (v *Vault) RenameFolder(folder NoteFolder, oldSubpath, newSubpath string) (
 	}
 	v.invalidateLayout()
 	// The Tasks folder lists name on-disk paths, so they follow the folder: a
-	// renamed Task folder left behind would empty Tasks (#962). Its icon and
-	// color follow it too.
+	// renamed Task folder left behind would empty Tasks (#962). So does the
+	// template folder (ZenNotes/zennotes#1024), and its icon and color.
 	oldSub, _ := filepath.Rel(base, oldAbs)
 	newSub, _ := filepath.Rel(base, newAbs)
 	if err := v.rewriteSettingsForFolderRename(folder, ToPosix(oldSub), ToPosix(newSub), v.relPosix(oldAbs), v.relPosix(newAbs)); err != nil {
@@ -944,7 +944,10 @@ func (v *Vault) DeleteFolder(folder NoteFolder, subpath string) error {
 // --- search ---
 
 // SearchText is a case-insensitive substring search over every line of
-// every live note, capped at limit matches.
+// every live note, capped at limit matches. The template folder's notes are
+// placeholders nobody is searching for (ZenNotes/zennotes#1024), so they are
+// skipped before the cap, as the app and the server skip them, and the limit
+// is spent on real notes.
 func (v *Vault) SearchText(query string, limit int) ([]TextSearchMatch, error) {
 	trimmed := strings.TrimSpace(query)
 	if trimmed == "" {
@@ -954,16 +957,20 @@ func (v *Vault) SearchText(query string, limit int) ([]TextSearchMatch, error) {
 		limit = 80
 	}
 	needle := strings.ToLower(trimmed)
+	templateFolder := v.Settings().TemplateFolder
 	out := []TextSearchMatch{}
 	v.walkNotes(LiveFolders, true, func(f noteFile) {
 		if len(out) >= limit {
+			return
+		}
+		rel := v.relPosix(f.abs)
+		if IsPathInTemplateFolder(rel, templateFolder) {
 			return
 		}
 		body, err := os.ReadFile(f.abs)
 		if err != nil {
 			return
 		}
-		rel := v.relPosix(f.abs)
 		title := strings.TrimSuffix(filepath.Base(f.abs), filepath.Ext(f.abs))
 		for i, line := range strings.Split(string(body), "\n") {
 			if len(out) >= limit {
@@ -992,12 +999,11 @@ func (v *Vault) SearchText(query string, limit int) ([]TextSearchMatch, error) {
 // --- tasks ---
 
 // ScanTasks parses every task in every live note, honoring the vault's
-// excluded folders, its Task folders (#962) and each note's `tasks:` opt-out
-// unless asked not to.
+// excluded folders, its Task folders (#962), its template folder, whose
+// checkboxes are placeholders (ZenNotes/zennotes#1024), and each note's
+// `tasks:` opt-out unless asked not to.
 func (v *Vault) ScanTasks(opts ParseTasksOptions) ([]Task, error) {
-	settings := v.Settings()
-	excluded := settings.TasksExcludedFolders
-	included := settings.TasksIncludedFolders
+	excluded, included := v.Settings().TasksFolderLists()
 	if opts.IncludeExcluded {
 		excluded = nil
 		included = nil
@@ -1034,8 +1040,9 @@ func (v *Vault) ScanTasks(opts ParseTasksOptions) ([]Task, error) {
 }
 
 // ScanTasksForPath parses one note's tasks. A trashed or unclassifiable note
-// contributes nothing, and neither does one under an excluded folder unless
-// opts asks for it.
+// contributes nothing, and neither does one the full scan's folder lists
+// leave out (an excluded folder, outside the Task folders, or the template
+// folder) unless opts asks for it.
 func (v *Vault) ScanTasksForPath(rel string, opts ParseTasksOptions) ([]Task, error) {
 	abs, err := v.AbsPath(rel)
 	if err != nil {
@@ -1050,9 +1057,10 @@ func (v *Vault) ScanTasksForPath(rel string, opts ParseTasksOptions) ([]Task, er
 		return []Task{}, nil
 	}
 	relPosix := v.relPosix(abs)
-	settings := v.Settings()
-	if !opts.IncludeExcluded && IsPathExcludedFromTasks(relPosix, settings.TasksExcludedFolders, settings.TasksIncludedFolders) {
-		return []Task{}, nil
+	if !opts.IncludeExcluded {
+		if excluded, included := v.Settings().TasksFolderLists(); IsPathExcludedFromTasks(relPosix, excluded, included) {
+			return []Task{}, nil
+		}
 	}
 	title := strings.TrimSuffix(filepath.Base(abs), filepath.Ext(abs))
 	return ParseTasks(relPosix, title, folder, string(body), opts), nil
