@@ -838,11 +838,14 @@ func (a *App) openNoteSearch(initial string) {
 		if a.idx == nil {
 			return nil
 		}
+		// The template folder's notes stay out, as in the desktop's Search
+		// notes, until the query starts with the folder's path (#1024).
+		templateFolder := a.idx.settings.TemplateFolder
 		var notes []vault.NoteMeta
 		if strings.TrimSpace(query) == "" {
 			seen := map[string]bool{}
 			for _, r := range a.recent {
-				if meta, ok := a.noteMeta(r); ok && !seen[r] {
+				if meta, ok := a.noteMeta(r); ok && !seen[r] && !vault.IsPathInTemplateFolder(r, templateFolder) {
 					seen[r] = true
 					notes = append(notes, meta)
 				}
@@ -851,13 +854,13 @@ func (a *App) openNoteSearch(initial string) {
 				if len(notes) >= 30 {
 					break
 				}
-				if !seen[n.Path] {
+				if !seen[n.Path] && !vault.IsPathInTemplateFolder(n.Path, templateFolder) {
 					seen[n.Path] = true
 					notes = append(notes, n)
 				}
 			}
 		} else {
-			notes = search.Notes(a.idx.search, query, 50, false)
+			notes = search.Notes(a.idx.search, query, 50, false, templateFolder)
 		}
 		items := make([]paletteItem, 0, len(notes))
 		for _, n := range notes {

@@ -192,7 +192,7 @@ func (a *App) noteCandidates(query, exclude string) []vault.NoteMeta {
 			}
 		}
 	} else {
-		notes = search.Notes(a.idx.search, query, 40, false)
+		notes = search.Notes(a.idx.search, query, 40, false, "")
 	}
 	out := make([]vault.NoteMeta, 0, len(notes))
 	seen := map[string]bool{}

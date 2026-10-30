@@ -67,6 +67,8 @@ func (v *settingsView) refresh(a *App) {
 		}
 		add(settingRow{"tasks", "includedFolders", strings.Join(a.idx.settings.TasksIncludedFolders, ", "), true})
 		add(settingRow{"tasks", "excludedFolders", strings.Join(a.idx.settings.TasksExcludedFolders, ", "), true})
+		// The template folder takes its notes out of Tasks too (#1024).
+		add(settingRow{"templates", "folder", a.idx.settings.TemplateFolder, true})
 	}
 	v.list.clamp(len(v.settings))
 }
@@ -118,11 +120,19 @@ var settingChoices = map[string][]string{
 
 func (v *settingsView) edit(a *App, row settingRow) {
 	save := func(value any) {
+		if text := strings.TrimSpace(fmt.Sprint(value)); row.section == "templates" && text != "" && vault.NormalizeTemplateFolder(text) == "" {
+			a.notifyError("Not a usable template folder: " + text)
+			return
+		}
 		var err error
 		if row.vault {
 			err = a.backend.UpdateVaultSettings(a.ctx, func(raw map[string]any) {
 				if row.section == "tasks" {
 					setTasksFolderList(raw, row.key, fmt.Sprint(value))
+					return
+				}
+				if row.section == "templates" {
+					setTemplateFolder(raw, fmt.Sprint(value))
 					return
 				}
 				m, _ := raw[row.section].(map[string]any)
@@ -185,6 +195,27 @@ func (v *settingsView) edit(a *App, row settingRow) {
 			save(text)
 		}
 	})
+}
+
+// setTemplateFolder writes the vault's template folder (`templates.folder`,
+// ZenNotes/zennotes#1024) cleaned the way every runtime reads it, keeping any
+// other key under `templates`. An empty edit removes it, and an empty
+// `templates` object goes with it, so vault.json never keeps an empty stub.
+func setTemplateFolder(raw map[string]any, value string) {
+	templates, _ := raw["templates"].(map[string]any)
+	if templates == nil {
+		templates = map[string]any{}
+	}
+	if folder := vault.NormalizeTemplateFolder(value); folder != "" {
+		templates["folder"] = folder
+	} else {
+		delete(templates, "folder")
+	}
+	if len(templates) == 0 {
+		delete(raw, "templates")
+	} else {
+		raw["templates"] = templates
+	}
 }
 
 // setTasksFolderList writes one of the vault's Tasks folder lists

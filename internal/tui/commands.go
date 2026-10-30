@@ -993,7 +993,7 @@ func (a *App) openArgument(arg string) error {
 			a.openNote(meta.Path, true)
 			return nil
 		}
-		if matches := search.Notes(a.idx.search, arg, 1, false); len(matches) > 0 {
+		if matches := search.Notes(a.idx.search, arg, 1, false, ""); len(matches) > 0 {
 			a.openNote(matches[0].Path, true)
 			return nil
 		}
