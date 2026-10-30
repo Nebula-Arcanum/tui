@@ -45,7 +45,8 @@ vault too.
   core of everything. Prefer a plain editor? Turn Vim off. Files, comments,
   bulk actions, editable settings, themes, and per-vault sessions are included.
 - **`zn mcp`.** The same tools the desktop's MCP server offers, for Claude
-  Code, Codex and any MCP client.
+  Code, Codex and any MCP client, on the whole vault or only the folders you
+  share, read-only if you like.
 - **Local and self-hosted workspaces.** Keep several vaults and server
   connections, switch between them, and use the same note commands against
   either backend. Remote changes arrive over the live feed with polling fallback.

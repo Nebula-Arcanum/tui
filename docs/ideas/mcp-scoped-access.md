@@ -1,9 +1,11 @@
 # Scoped access for the MCP servers (ZenNotes/tui#21)
 
-> Status: design accepted 2026-10-29 (section 12). Phase 0 is built in both repos. Phase 1a
-> (Go, flags only) is fbaf94c on `feat/mcp-scoped-access`; section 13 records where it
-> differs from this design. Phase 1b (the desktop's bundled server, the shared fixture) is
-> built, uncommitted; section 14 records it and a fix it made to both engines. Written 2026-10-29 for
+> Status: design accepted 2026-10-29 (section 12). zn 0.13.0 (2026-10-30) ships Phase 0
+> (ZenNotes/tui#23) and Phase 1a (Go, flags only) with the link fix and the shared contract
+> test; section 13 records where 1a differs from this design. Phase 1b (the desktop's bundled
+> server, the shared fixture) is 7be9e993 in ZenNotes/zennotes, landing in desktop 2.80.0;
+> section 14 records it and a fix it made to both engines. Phases 2 to 4 are not started.
+> Written 2026-10-29 for
 > [ZenNotes/tui#21](https://github.com/ZenNotes/tui/issues/21) (lewxdev). Covers both MCP
 > engines: the Go `zn mcp` in this repo and the TypeScript server the desktop app bundles
 > (`apps/desktop/src/mcp` in ZenNotes/zennotes). Decisions are at the end.
@@ -550,15 +552,17 @@ Adib, 2026-10-29: "follow your recommendations". Settled:
    documented.
 8. **Three access tiers:** `read`, `comment`, `write`.
 9. **Per-folder access levels** are a Phase 3 option, not v1.
-10. **Phase 0 ships first, on its own** (started 2026-10-29 in its own session).
+10. **Phase 0 ships first, on its own** (started 2026-10-29 in its own session; merged on its
+    own as ZenNotes/tui#23, then released with Phase 1a in zn 0.13.0 and desktop 2.80.0).
 11. **`Space l h`** for the folder share/hide action.
 
-Still open: whether Phase 0's release notes carry an advisory line, and when to answer
-lewxdev on #21 (and whether to invite their review of this design).
+Still open: whether Phase 0's release notes carry an advisory line (zn 0.13.0's notes list
+it as a fix, with no advisory), and when to answer lewxdev on #21 (and whether to invite
+their review of this design).
 
 ## 13. Phase 1a as built
 
-On `feat/mcp-scoped-access` in this repo, uncommitted (2026-10-29):
+Shipped in zn 0.13.0 (2026-10-30), with Phase 0 under it:
 
 - `internal/mcp/scope.go`: `Scope`, `NewScope` (flag validation), segment matching,
   `toolClasses` and `toolAllowed`, tool annotations, the instructions paragraph, the
@@ -589,8 +593,8 @@ fixture (lands with 1b, which owns the normative TS module).
 
 ## 14. Phase 1b as built
 
-In ZenNotes/zennotes on `feat/mcp-scoped-access` (cut from `v2.80.0`, so on top of Phase 0)
-and here on top of fbaf94c, both uncommitted (2026-10-29):
+In ZenNotes/zennotes as 7be9e993 (on top of Phase 0, landing in desktop 2.80.0), and here
+as the link fix and the contract test in zn 0.13.0:
 
 - `packages/shared-domain/src/mcp-scope.ts`, the normative module: flag parsing and entry
   validation with zn's refusal bytes (Go's `%q` included), `foldMcpScopePath` (`search.Fold`,

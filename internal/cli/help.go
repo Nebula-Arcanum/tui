@@ -106,7 +106,7 @@ var helpSections = []helpSection{
 		{"tui", "Open ZenNotes in the terminal: sidebar, tabs, splits, Vim motions, tasks, tags", "--vault <v>  --server <s>  [path]"},
 	}},
 	{"MCP", []helpRow{
-		{"mcp", "Start the MCP stdio server (Claude / Codex)", "--allow-path <p>…  --deny-path <p>…  --read-only  --access read|comment|write"},
+		{"mcp", "Start the MCP stdio server (Claude / Codex). --allow-path and --deny-path share only part of the vault; --read-only, or --access comment, offers fewer tools", "--allow-path <p>…  --deny-path <p>…  --read-only  --access read|comment|write"},
 	}},
 	{"CONFIGURATION", []helpRow{
 		{"config", "Open config.toml in $EDITOR, creating a commented starter file", "--path  --no-edit"},
