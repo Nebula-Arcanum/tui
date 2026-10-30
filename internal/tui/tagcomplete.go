@@ -204,7 +204,8 @@ func (a *App) tagPool(buf *noteBuffer) []tagCount {
 	counts := map[string]int{}
 	if a.idx != nil {
 		for _, n := range a.idx.notes {
-			if n.Folder == vault.FolderTrash || n.Path == buf.path {
+			// A note in the template folder contributes no tags (#1024).
+			if n.Folder == vault.FolderTrash || n.Path == buf.path || vault.IsPathInTemplateFolder(n.Path, a.idx.settings.TemplateFolder) {
 				continue
 			}
 			for _, t := range n.Tags {

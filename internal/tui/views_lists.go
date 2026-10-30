@@ -287,7 +287,8 @@ func (v *tagsView) refresh(a *App) {
 		}
 	}
 	for _, n := range a.idx.notes {
-		if n.Folder == vault.FolderTrash {
+		// A template's tags count for nothing (#1024), so a tag's notes skip it.
+		if n.Folder == vault.FolderTrash || vault.IsPathInTemplateFolder(n.Path, a.idx.settings.TemplateFolder) {
 			continue
 		}
 		have := map[string]bool{}

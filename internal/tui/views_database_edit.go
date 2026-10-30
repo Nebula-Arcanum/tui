@@ -98,7 +98,8 @@ func (a *App) optionsFromSource(src *database.OptionsSource) []string {
 				continue
 			}
 		case "tag":
-			if !hasTag(n.Tags, src.Tag) {
+			// A tag source is a tag search, which skips the template folder (#1024).
+			if !hasTag(n.Tags, src.Tag) || vault.IsPathInTemplateFolder(n.Path, a.idx.settings.TemplateFolder) {
 				continue
 			}
 		}

@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/ZenNotes/tui/internal/database"
 )
 
 // templateFolderApp opens a root-layout vault whose `Templates` folder is its
@@ -17,7 +19,7 @@ func templateFolderApp(t *testing.T) *App {
 	root := t.TempDir()
 	for rel, body := range map[string]string{
 		".zennotes/vault.json":     `{"primaryNotesLocation":"root","templates":{"folder":"Templates"}}`,
-		"Templates/Meeting.md":     "---\ntags: [work]\n---\n- [ ] Agenda item\n",
+		"Templates/Meeting.md":     "---\ntags: [work, tpl-only]\n---\n- [ ] Agenda item\n",
 		"Templates/Work/Retro.md":  "- [ ] Action item\n",
 		"Notes/Meeting minutes.md": "---\ntags: [work]\n---\n- [ ] Book the room\n",
 	} {
@@ -115,5 +117,44 @@ func TestSetTemplateFolder(t *testing.T) {
 	setTemplateFolder(raw, "")
 	if _, ok := raw["templates"]; ok {
 		t.Fatalf("clearing the only key should drop templates, got %#v", raw)
+	}
+}
+
+// A note in the template folder contributes no tags, as in desktop 2.80.0:
+// the Tags view, the sidebar and the tag pickers leave its tags out of names
+// and counts, a tag's notes leave it out, and so do tag completion and a
+// field whose options come from a tag.
+func TestTemplateFolderContributesNoTags(t *testing.T) {
+	a := templateFolderApp(t)
+	if want := []tagCount{{"work", 1}}; !reflect.DeepEqual(a.idx.tags, want) {
+		t.Fatalf("tags = %v, want %v", a.idx.tags, want)
+	}
+
+	a.openTags("work")
+	tv, ok := a.activeTab().view.(*tagsView)
+	if !ok {
+		t.Fatal("the Tags view did not open")
+	}
+	notes := []string{}
+	for _, n := range tv.notes {
+		notes = append(notes, n.Path)
+	}
+	if !reflect.DeepEqual(notes, []string{"Notes/Meeting minutes.md"}) {
+		t.Fatalf("notes tagged work = %v", notes)
+	}
+
+	if got := a.optionsFromSource(&database.OptionsSource{Kind: "tag", Tag: "work"}); !reflect.DeepEqual(got, []string{"Meeting minutes"}) {
+		t.Fatalf("options from #work = %v", got)
+	}
+
+	a.openNote("Notes/Meeting minutes.md", true)
+	buf := a.activeBuffer()
+	if buf == nil {
+		t.Fatal("Meeting minutes did not open")
+	}
+	for _, tc := range a.tagPool(buf) {
+		if tc.tag == "tpl-only" {
+			t.Fatalf("tag completion offers the template's tag: %v", a.tagPool(buf))
+		}
 	}
 }

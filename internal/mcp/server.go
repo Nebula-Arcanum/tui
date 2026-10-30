@@ -292,6 +292,12 @@ func tools() []toolDef {
 				if err != nil {
 					return nil, err
 				}
+				// A tag filter is a tag search, which skips the template
+				// folder (ZenNotes/zennotes#1024).
+				templateFolder := ""
+				if hasTag {
+					templateFolder = backend.TemplateFolder(ctx, b)
+				}
 				notes := []vault.NoteMeta{}
 				prefix := ""
 				if hasSub && sub != "" {
@@ -308,7 +314,7 @@ func tools() []toolDef {
 					if prefix != "" && !strings.HasPrefix(n.Path, prefix) {
 						continue
 					}
-					if hasTag && !containsFold(n.Tags, strings.ToLower(tag)) {
+					if hasTag && (!containsFold(n.Tags, strings.ToLower(tag)) || vault.IsPathInTemplateFolder(n.Path, templateFolder)) {
 						continue
 					}
 					if hasWiki && !containsFold(n.Wikilinks, strings.ToLower(wikilinkTo)) {
@@ -707,9 +713,10 @@ func tools() []toolDef {
 				if err != nil {
 					return nil, err
 				}
+				templateFolder := backend.TemplateFolder(ctx, b)
 				matches := []vault.NoteMeta{}
 				for _, n := range all {
-					if n.Folder != vault.FolderTrash && containsFold(n.Tags, tag) {
+					if n.Folder != vault.FolderTrash && containsFold(n.Tags, tag) && !vault.IsPathInTemplateFolder(n.Path, templateFolder) {
 						matches = append(matches, n)
 					}
 				}
@@ -729,9 +736,11 @@ func tools() []toolDef {
 				if err != nil {
 					return nil, err
 				}
+				// A note in the template folder contributes no tags (#1024).
+				templateFolder := backend.TemplateFolder(ctx, b)
 				counts := map[string]int{}
 				for _, n := range all {
-					if n.Folder == vault.FolderTrash {
+					if n.Folder == vault.FolderTrash || vault.IsPathInTemplateFolder(n.Path, templateFolder) {
 						continue
 					}
 					for _, t := range n.Tags {

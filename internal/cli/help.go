@@ -60,8 +60,8 @@ var helpSections = []helpSection{
 		{"folder delete <p>", "Delete a subfolder and everything in it", "--yes"},
 	}},
 	{"TAGS", []helpRow{
-		{"tag list", "Every #tag with its note count", "--json"},
-		{"tag find <tag>", "Notes carrying this #tag", "--limit <n>  --json"},
+		{"tag list", "Every #tag with its note count, the template folder left out", "--json"},
+		{"tag find <tag>", "Notes carrying this #tag, the template folder left out", "--limit <n>  --json"},
 	}},
 	{"TASKS", []helpRow{
 		{"task list", "Open checkbox tasks across all notes but the template folder", "--unchecked  --all  --tag <t>  --include-excluded  --json"},

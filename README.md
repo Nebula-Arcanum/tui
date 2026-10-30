@@ -243,10 +243,10 @@ zn base pages "Reading list"
 ```
 
 Notes in the vault's template folder (`templates.folder` in vault.json, set
-in the app) are templates, so `task list`, `task watch`, `search` and
-`zn mcp` leave them out; `--include-excluded` lists their tasks. In the
-terminal app, Search notes finds them once the query starts with the
-folder's path (`Templates/`).
+in the app) are templates, so `task list`, `task watch`, `search`, the tag
+list, tag searches and `zn mcp` leave them out; `--include-excluded` lists
+their tasks. In the terminal app, Search notes finds them once the query
+starts with the folder's path (`Templates/`).
 
 Use the stable ID returned by `task list` with `task toggle <id>`. Comment
 replies and resolve/reopen operations take a thread ID. `base add` and

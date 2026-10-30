@@ -89,3 +89,55 @@ func TestTaskWatchIgnoresTheTemplateFolder(t *testing.T) {
 		t.Fatalf("want one line for Notes/Monday.md, got:\n%s", output.String())
 	}
 }
+
+// templateTagsVault has a template carrying a tag of its own and a tag it
+// shares with a real note.
+func templateTagsVault(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	writeVaultFile(t, root, ".zennotes/vault.json", `{"primaryNotesLocation":"root","templates":{"folder":"Templates"}}`)
+	writeVaultFile(t, root, "Templates/Meeting.md", "---\ntags: [work, tpl-only]\n---\n# {{title}}\n")
+	writeVaultFile(t, root, "Notes/Monday.md", "# Monday\n\nPlanning #work\n")
+	return root
+}
+
+// A note in the template folder contributes no tags: `zn tag list` leaves its
+// tags out of names and counts, and `zn tag find` and `zn list --tag` do not
+// return it, as the desktop 2.80.0 tag list and tag search do. `zn list`
+// without a tag still lists it, since it is an ordinary note otherwise.
+func TestTagsLeaveTheTemplateFolderOut(t *testing.T) {
+	isolatedCLI(t)
+	root := templateTagsVault(t)
+	var tags []struct {
+		Tag   string `json:"tag"`
+		Count int    `json:"count"`
+	}
+	runJSON(t, []string{"tag", "list", "--json", "--vault", root}, &tags)
+	if len(tags) != 1 || tags[0].Tag != "work" || tags[0].Count != 1 {
+		t.Fatalf("tag list = %+v, want only work with 1 note", tags)
+	}
+	notePaths := func(args ...string) []string {
+		var notes []struct {
+			Path string `json:"path"`
+		}
+		runJSON(t, append(args, "--json", "--vault", root), &notes)
+		out := []string{}
+		for _, n := range notes {
+			out = append(out, n.Path)
+		}
+		slices.Sort(out)
+		return out
+	}
+	if got := notePaths("tag", "find", "work"); !reflect.DeepEqual(got, []string{"Notes/Monday.md"}) {
+		t.Fatalf("tag find work = %v", got)
+	}
+	if got := notePaths("tag", "find", "tpl-only"); len(got) != 0 {
+		t.Fatalf("tag find tpl-only = %v, want none", got)
+	}
+	if got := notePaths("list", "--tag", "work"); !reflect.DeepEqual(got, []string{"Notes/Monday.md"}) {
+		t.Fatalf("list --tag work = %v", got)
+	}
+	if got := notePaths("list"); !reflect.DeepEqual(got, []string{"Notes/Monday.md", "Templates/Meeting.md"}) {
+		t.Fatalf("list = %v, want both notes", got)
+	}
+}
