@@ -177,6 +177,26 @@ func matchContract(t *testing.T, actual, expected any, where string) {
 	}
 }
 
+// vaultSpellings is a needle with $VAULT replaced by the vault root as a
+// result can spell it: as is in an error message, and JSON-escaped inside a
+// result object, where a Windows root's backslashes are doubled.
+func vaultSpellings(needle, root string) []string {
+	escaped, _ := json.Marshal(root)
+	return []string{
+		strings.ReplaceAll(needle, "$VAULT", root),
+		strings.ReplaceAll(needle, "$VAULT", string(escaped[1:len(escaped)-1])),
+	}
+}
+
+func containsAny(text string, needles []string) bool {
+	for _, needle := range needles {
+		if strings.Contains(text, needle) {
+			return true
+		}
+	}
+	return false
+}
+
 func sortedCopy(values []string) []string {
 	out := append([]string{}, values...)
 	sort.Strings(out)
@@ -327,12 +347,12 @@ func TestSharedScopeContract(t *testing.T) {
 					}
 				}
 				for _, needle := range e.Contains {
-					if !strings.Contains(text, strings.ReplaceAll(needle, "$VAULT", root)) {
+					if !containsAny(text, vaultSpellings(needle, root)) {
 						t.Errorf("%s: lacks %q in %s", where, needle, text)
 					}
 				}
 				for _, needle := range e.Excludes {
-					if strings.Contains(text, strings.ReplaceAll(needle, "$VAULT", root)) {
+					if containsAny(text, vaultSpellings(needle, root)) {
 						t.Errorf("%s: has %q in %s", where, needle, text)
 					}
 				}
