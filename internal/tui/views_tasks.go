@@ -929,7 +929,7 @@ func (v *tasksView) taskEditKey(a *App, k vim.Key, t *vault.Task) bool {
 }
 
 func (v *tasksView) boardKey(a *App, k vim.Key) bool {
-	if !a.listKeyAllowed(k) && !k.Is("enter") && !k.Is("left") && !k.Is("right") && !k.Is("up") && !k.Is("down") {
+	if !a.listKeyAllowed(k) && !k.Is("enter") && !k.Is("tab") && !k.Is("left") && !k.Is("right") && !k.Is("up") && !k.Is("down") {
 		return false
 	}
 	t := v.selectedTask()
@@ -1046,6 +1046,8 @@ func (v *tasksView) calendarKey(a *App, k vim.Key) bool {
 		switch {
 		case k.Is("esc") || k.IsRune('h') || k.Is("left"):
 			v.calc().focus = calFocusGrid
+		case k.Is("tab"):
+			v.calc().cycleFocus(v.day)
 		case k.IsRune('j') || k.Is("down"):
 			if v.calc().cursor < len(v.calc().dayEntries(v.day))-1 {
 				v.calc().cursor++
@@ -1086,11 +1088,9 @@ func (v *tasksView) calendarKey(a *App, k vim.Key) bool {
 	case k.IsRune('k') || k.Is("up"):
 		v.selectDay(a, v.day.AddDate(0, 0, -7))
 	case a.bound(k, "nav.halfPageUp"):
-		v.month = v.month.AddDate(0, -1, 0)
-		v.selectDay(a, v.day.AddDate(0, -1, 0))
+		v.pageDay(a, -1)
 	case a.bound(k, "nav.halfPageDown"):
-		v.month = v.month.AddDate(0, 1, 0)
-		v.selectDay(a, v.day.AddDate(0, 1, 0))
+		v.pageDay(a, 1)
 	case k.IsRune('[') || k.IsRune('H'):
 		v.month = v.month.AddDate(0, -1, 0)
 		v.selectDay(a, v.day.AddDate(0, -1, 0))
@@ -1101,11 +1101,10 @@ func (v *tasksView) calendarKey(a *App, k vim.Key) bool {
 		now := calendarNow()
 		v.month = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.Local)
 		v.selectDay(a, now)
+	case k.Is("tab"):
+		return v.calc().cycleFocus(v.day)
 	case k.Is("enter"):
-		if len(v.calc().dayEntries(v.day)) > 0 {
-			v.calc().focus = calFocusItems
-			v.calc().cursor = 0
-		} else {
+		if !v.calc().cycleFocus(v.day) {
 			a.openPeriodicOn(periodic.Daily, v.day)
 		}
 	case k.IsRune('o'):
@@ -1116,6 +1115,20 @@ func (v *tasksView) calendarKey(a *App, k vim.Key) bool {
 		return false
 	}
 	return true
+}
+
+// pageDay moves the selected day by one page of the current layout: a month,
+// a week or a day. dir is -1 or 1.
+func (v *tasksView) pageDay(a *App, dir int) {
+	switch v.calc().sub {
+	case calWeek:
+		v.selectDay(a, v.day.AddDate(0, 0, 7*dir))
+	case calDay:
+		v.selectDay(a, v.day.AddDate(0, 0, dir))
+	default:
+		v.month = v.month.AddDate(0, dir, 0)
+		v.selectDay(a, v.day.AddDate(0, dir, 0))
+	}
 }
 
 func (v *tasksView) selectDay(a *App, day time.Time) {

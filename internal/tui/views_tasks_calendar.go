@@ -103,6 +103,37 @@ func (c *taskCalendar) dayEntries(day time.Time) []calEntry {
 	return c.byDay[day.Format("2006-01-02")]
 }
 
+// focusOrder is the parts Tab visits, in order: the grid, then the selected
+// day's items when it has any.
+func (c *taskCalendar) focusOrder(day time.Time) []calFocus {
+	order := []calFocus{calFocusGrid}
+	if len(c.dayEntries(day)) > 0 {
+		order = append(order, calFocusItems)
+	}
+	return order
+}
+
+// cycleFocus moves focus to the next part in focusOrder, wrapping around. It
+// reports whether focus moved.
+func (c *taskCalendar) cycleFocus(day time.Time) bool {
+	order := c.focusOrder(day)
+	if len(order) < 2 {
+		return false
+	}
+	next := order[0]
+	for i, f := range order {
+		if f == c.focus {
+			next = order[(i+1)%len(order)]
+			break
+		}
+	}
+	c.focus = next
+	if next == calFocusItems {
+		c.cursor = 0
+	}
+	return true
+}
+
 // selected is the task the item panel or the strip has selected, if any.
 func (c *taskCalendar) selected(day time.Time) *vault.Task {
 	switch c.focus {
