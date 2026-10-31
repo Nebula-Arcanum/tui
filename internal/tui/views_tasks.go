@@ -1075,6 +1075,8 @@ func (v *tasksView) calendarKey(a *App, k vim.Key) bool {
 		return false
 	}
 	switch {
+	case k.Is("esc"):
+		v.calc().sub = (v.calc().sub + 1) % 3
 	case k.IsRune('h') || k.Is("left"):
 		v.selectDay(a, v.day.AddDate(0, 0, -1))
 	case k.IsRune('l') || k.Is("right"):

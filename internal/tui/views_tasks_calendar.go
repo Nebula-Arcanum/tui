@@ -67,6 +67,8 @@ type calLayout struct {
 	boxes     []calDayBox
 	itemStart int
 	stripRows int
+	// gutter is the width of the hour labels left of the week and day columns.
+	gutter int
 }
 
 // taskCalendar is the Tasks tab's calendar: day entries, the items beside
@@ -151,6 +153,143 @@ func (c *taskCalendar) monthLayout(a *App, month time.Time, w, h int) calLayout 
 	return lay
 }
 
+// hourLabelWidth is the width of the widest hour label for the time format.
+func hourLabelWidth(a *App) int {
+	if a.prefs.TimeFormat == "12h" {
+		return 5
+	}
+	return 2
+}
+
+// hourLabel is the label of hour row h (0-23).
+func hourLabel(a *App, h int) string {
+	if a.prefs.TimeFormat == "12h" {
+		n := h % 12
+		if n == 0 {
+			n = 12
+		}
+		suffix := "AM"
+		if h >= 12 {
+			suffix = "PM"
+		}
+		return fmt.Sprintf("%2d %s", n, suffix)
+	}
+	return fmt.Sprintf("%02d", h)
+}
+
+// columnDays is the days a week or day layout shows as columns, in order.
+func (c *taskCalendar) columnDays(a *App, day time.Time) []time.Time {
+	if c.sub == calDay {
+		return []time.Time{day}
+	}
+	offset := int(day.Weekday())
+	if a.prefs.CalendarWeekStart != "sunday" {
+		offset = (offset + 6) % 7
+	}
+	first := time.Date(day.Year(), day.Month(), day.Day()-offset, 0, 0, 0, 0, time.Local)
+	days := make([]time.Time, 7)
+	for i := range days {
+		days[i] = first.AddDate(0, 0, i)
+	}
+	return days
+}
+
+// columnLayout computes the regions of the week or day view for a body of
+// w x h. The hour list sits under the header rows with one column per day
+// beside it, and the strip is pinned to the bottom of the body.
+func (c *taskCalendar) columnLayout(a *App, day time.Time, w, h int) calLayout {
+	lay := calLayout{w: w, h: h}
+	if m := calMin[c.sub]; w < m[0] || h < m[1] {
+		lay.tooSmall = true
+		return lay
+	}
+	days := c.columnDays(a, day)
+	headRows := 1
+	if c.sub == calWeek {
+		headRows = 2
+	}
+	stripRows := clampInt(h/8, 2, 6)
+	stripH := 1 + stripRows
+	lay.stripRows = stripRows
+	lay.strip = calRect{x: 0, y: h - stripH, w: w, h: stripH}
+	lay.gutter = hourLabelWidth(a) + 2
+	hourRows := clampInt(h-stripH-headRows, 0, 24)
+	colW := (w - lay.gutter) / len(days)
+	for i, d := range days {
+		lay.boxes = append(lay.boxes, calDayBox{day: d, rect: calRect{x: lay.gutter + i*colW, y: headRows, w: colW, h: hourRows}})
+	}
+	return lay
+}
+
+// renderColumns draws the week or day view: a header, the hour list with the
+// day columns beside it, and the strip. Entries are listed from the top of
+// their column, not placed by time of day.
+func (c *taskCalendar) renderColumns(a *App, day time.Time, lay calLayout, w, h int, focused bool) string {
+	th := a.theme
+	rows := make([]string, 0, h)
+	blank := strings.Repeat(" ", lay.gutter)
+	first, last := lay.boxes[0].day, lay.boxes[len(lay.boxes)-1].day
+	if c.sub == calDay {
+		rows = append(rows, padRight(" "+th.Title.Render(day.Format("Monday, January 2, 2006")), w))
+	} else {
+		title := first.Format("January 2") + " – " + last.Format("January 2, 2006")
+		rows = append(rows, padRight(" "+th.Title.Render(title), w))
+		head := blank
+		for _, b := range lay.boxes {
+			cell := padRight(" "+b.day.Format("Mon")[:2]+b.day.Format(" 2"), b.rect.w)
+			if sameDay(b.day, day) {
+				cell = th.Selected.Render(cell)
+			} else {
+				cell = th.Dim.Render(cell)
+			}
+			head += cell
+		}
+		rows = append(rows, padRight(head, w))
+	}
+	hourRows := lay.boxes[0].rect.h
+	for i := 0; i < hourRows; i++ {
+		var sb strings.Builder
+		sb.WriteString(th.Muted.Render(padRight(hourLabel(a, i), lay.gutter-2)) + th.Dim.Render(" │"))
+		for _, b := range lay.boxes {
+			sb.WriteString(c.columnLine(a, b, i, focused && sameDay(b.day, day)))
+		}
+		rows = append(rows, padRight(sb.String(), w))
+	}
+	for len(rows) < lay.strip.y {
+		rows = append(rows, strings.Repeat(" ", w))
+	}
+	rows = append(rows, c.stripLines(a, lay, w, focused)...)
+	return fitBlock(strings.Join(rows, "\n"), w, h)
+}
+
+// columnLine is line li of one day column: entries from the top, with
+// "+N more" on the last line when they do not all fit.
+func (c *taskCalendar) columnLine(a *App, b calDayBox, li int, focusedDay bool) string {
+	th := a.theme
+	w := b.rect.w
+	entries := c.dayEntries(b.day)
+	shown := len(entries)
+	if shown > b.rect.h {
+		shown = b.rect.h - 1
+	}
+	switch {
+	case li < shown:
+		e := entries[li]
+		lead := " "
+		if e.scheduled {
+			lead = calScheduledMark
+		}
+		text := padRight(lead+truncateCells(e.task.Content, w-2), w)
+		if focusedDay && c.focus == calFocusItems && li == c.cursor {
+			return th.SelectedFocus.Render(text)
+		}
+		return text
+	case li == shown && shown < len(entries):
+		return th.Dim.Render(padRight(fmt.Sprintf(" +%d more", len(entries)-shown), w))
+	}
+	return strings.Repeat(" ", w)
+}
+
 // monthGridStart is the first day shown for a month and how many week rows
 // cover it.
 func monthGridStart(month time.Time, mondayFirst bool) (time.Time, int) {
@@ -165,11 +304,16 @@ func monthGridStart(month time.Time, mondayFirst bool) (time.Time, int) {
 
 // render draws the calendar into a w x h body.
 func (c *taskCalendar) render(a *App, month, day time.Time, w, h int, focused bool) string {
-	lay := c.monthLayout(a, month, w, h)
+	var lay calLayout
+	if c.sub == calMonth {
+		lay = c.monthLayout(a, month, w, h)
+	} else {
+		lay = c.columnLayout(a, day, w, h)
+	}
 	c.layout = lay
 	th := a.theme
 	if lay.tooSmall {
-		m := calMin[calMonth]
+		m := calMin[c.sub]
 		lines := make([]string, max(h, 0))
 		if len(lines) > 0 {
 			msg := fmt.Sprintf("Terminal too small: needs %d×%d", m[0], m[1])
@@ -178,6 +322,9 @@ func (c *taskCalendar) render(a *App, month, day time.Time, w, h int, focused bo
 		return fitBlock(strings.Join(lines, "\n"), w, h)
 	}
 
+	if c.sub != calMonth {
+		return c.renderColumns(a, day, lay, w, h, focused)
+	}
 	weeks := len(lay.boxes) / 7
 	gw := lay.items.x
 	wnW := lay.boxes[0].rect.x
