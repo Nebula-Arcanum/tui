@@ -29,6 +29,12 @@ func (a *App) createNote(folder vault.NoteFolder, title, subpath string, body *s
 	a.addNoteToIndex(meta)
 	if open {
 		a.openNote(meta.Path, true)
+		// The new note is entered for typing, so show the editor whatever
+		// the default pane mode is.
+		if t := a.activeTab(); t != nil && t.view == nil && t.path == meta.Path {
+			t.mode = modeEdit
+			a.layout()
+		}
 		a.withLoadedBuffer(meta.Path, func(buf *noteBuffer) {
 			buf.ed.GotoLine(buf.ed.LineCount())
 			if a.prefs.VimMode {
