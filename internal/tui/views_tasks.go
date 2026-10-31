@@ -1083,6 +1083,12 @@ func (v *tasksView) calendarKey(a *App, k vim.Key) bool {
 		v.selectDay(a, v.day.AddDate(0, 0, 7))
 	case k.IsRune('k') || k.Is("up"):
 		v.selectDay(a, v.day.AddDate(0, 0, -7))
+	case a.bound(k, "nav.halfPageUp"):
+		v.month = v.month.AddDate(0, -1, 0)
+		v.selectDay(a, v.day.AddDate(0, -1, 0))
+	case a.bound(k, "nav.halfPageDown"):
+		v.month = v.month.AddDate(0, 1, 0)
+		v.selectDay(a, v.day.AddDate(0, 1, 0))
 	case k.IsRune('[') || k.IsRune('H'):
 		v.month = v.month.AddDate(0, -1, 0)
 		v.selectDay(a, v.day.AddDate(0, -1, 0))
