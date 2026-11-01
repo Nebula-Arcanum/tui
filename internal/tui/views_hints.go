@@ -46,6 +46,10 @@ func (v *tasksView) scrollBy(a *App, delta int) {
 			v.card = max(0, min(max(0, len(v.columns[v.col].cards)-1), v.card+delta))
 		}
 	case "calendar":
+		if c := v.calc(); c.sub != calMonth && c.visibleHourRows() > 0 && !c.hourListWhole() {
+			c.scrollHours(sign(delta))
+			return
+		}
 		v.selectDay(a, v.day.AddDate(0, 0, 7*sign(delta)))
 	default:
 		v.list.move(delta, len(v.rows))
