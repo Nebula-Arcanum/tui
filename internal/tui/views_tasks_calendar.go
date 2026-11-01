@@ -441,6 +441,16 @@ func (c *taskCalendar) scrollColumn(day time.Time, delta int) bool {
 	return false
 }
 
+// calMoreLabel is the overflow line for n hidden entries in a w-wide cell:
+// " +N more" when it fits, else " +N", else " +N" cut to the width.
+func calMoreLabel(n, w int) string {
+	long := fmt.Sprintf(" +%d more", n)
+	if cellWidth(long) <= w {
+		return long
+	}
+	return truncateCells(fmt.Sprintf(" +%d", n), w)
+}
+
 // columnLine is line li of one day column: entries from the scroll offset,
 // with "+N more" on the first line when some are scrolled off the top and on
 // the last line when they do not all fit.
@@ -449,7 +459,7 @@ func (c *taskCalendar) columnLine(a *App, b calDayBox, li int, focusedDay bool, 
 	w := b.rect.w
 	entries := c.dayEntries(b.day)
 	more := func(n int) string {
-		return th.Dim.Render(padRight(fmt.Sprintf(" +%d more", n), w))
+		return th.Dim.Render(padRight(calMoreLabel(n, w), w))
 	}
 	first := 0
 	if scroll > 0 {
@@ -604,7 +614,7 @@ func (c *taskCalendar) boxLine(a *App, box calDayBox, li int, selected, today, o
 			}
 			text = lead + truncateCells(e.task.Content, w-1)
 		case li-1 == shown && shown < len(entries):
-			text = " " + fmt.Sprintf("+%d more", len(entries)-shown)
+			text = calMoreLabel(len(entries)-shown, w)
 			if !selected {
 				style = th.Dim
 			}
