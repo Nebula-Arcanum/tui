@@ -1084,6 +1084,10 @@ func (v *tasksView) calendarKey(a *App, k vim.Key) bool {
 			if t != nil {
 				a.taskMenu(*t)
 			}
+		case k.IsRune('T'):
+			if t != nil {
+				v.calendarDueMenu(a, *t)
+			}
 		default:
 			return v.taskEditKey(a, k, t)
 		}
@@ -1140,6 +1144,23 @@ func (v *tasksView) calendarKey(a *App, k vim.Key) bool {
 		return false
 	}
 	return true
+}
+
+// calendarDueMenu offers the due dates the calendar can set at once. The
+// choices have no shortcut keys, so letters never act on the task by accident.
+func (v *tasksView) calendarDueMenu(a *App, t vault.Task) {
+	now := calendarNow()
+	set := func(d time.Time) func(a *App) {
+		return func(a *App) { a.setTaskDue(t, vault.TodayISO(d)) }
+	}
+	a.showMenu("Due date", []menuItem{
+		{label: "Today (" + vault.TodayISO(now) + ")", run: set(now)},
+		{label: "Tomorrow (" + vault.TodayISO(now.AddDate(0, 0, 1)) + ")", run: set(now.AddDate(0, 0, 1))},
+		{label: "Next week (" + vault.TodayISO(now.AddDate(0, 0, 7)) + ")", run: set(now.AddDate(0, 0, 7))},
+		{label: "Selected day (" + vault.TodayISO(v.day) + ")", run: set(v.day)},
+		{label: "Clear due date", run: func(a *App) { a.setTaskDue(t, "") }},
+		{label: "Other…", run: func(a *App) { a.taskDuePrompt(t) }},
+	})
 }
 
 // pageDay moves the selected day by one page of the current layout: a month,
