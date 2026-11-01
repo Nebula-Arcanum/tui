@@ -67,6 +67,8 @@ type calLayout struct {
 	boxes     []calDayBox
 	itemStart int
 	stripRows int
+	// stripStart is the index of the first strip task shown.
+	stripStart int
 	// gutter is the width of the hour labels left of the week and day columns.
 	gutter int
 	// hourStart is the index of the first hour row shown, and hourTotal the
@@ -665,6 +667,7 @@ func (c *taskCalendar) stripLines(a *App, lay calLayout, w int, focused bool) []
 	if c.focus == calFocusStrip && c.strip >= rows {
 		start = c.strip - rows + 1
 	}
+	c.layout.stripStart = start
 	for i := 0; i < rows; i++ {
 		idx := start + i
 		line := ""
@@ -679,22 +682,68 @@ func (c *taskCalendar) stripLines(a *App, lay calLayout, w int, focused bool) []
 	return out
 }
 
-// click handles a mouse press at body cell (x, y). It reports whether the
+// columnEntryAt is the index of the entry shown on line li of box b when its
+// column is scrolled by s, or false for the "+N more" lines and empty ones.
+func (c *taskCalendar) columnEntryAt(b calDayBox, s, li int) (int, bool) {
+	li -= min(s, 1)
+	if li < 0 || li >= c.columnShown(b, s) {
+		return 0, false
+	}
+	return s + li, true
+}
 
+// pressTask acts on the task a press landed on: a right-click opens its menu
+// and a double-click its source note.
+func (c *taskCalendar) pressTask(a *App, t vault.Task, right, double bool) {
+	switch {
+	case right:
+		a.taskMenu(t)
+	case double:
+		a.openTaskSource(t)
+	}
+}
+
+// click handles a mouse press at body cell (x, y) by hit-testing the last
+// layout.
 func (c *taskCalendar) click(a *App, v *tasksView, x, y int, right, double bool) {
 	lay := c.layout
 	if lay.tooSmall {
 		return
 	}
-	for _, b := range lay.boxes {
-		if b.rect.contains(x, y) {
-			v.selectDay(a, b.day)
-			c.focus = calFocusGrid
-			if double {
-				v.calendarKey(a, vim.KeyEnter)
-			}
-			return
+	if lay.strip.contains(x, y) {
+		idx := lay.stripStart + y - lay.strip.y - 1
+		if y > lay.strip.y && idx < len(c.undated) {
+			c.focus = calFocusStrip
+			c.strip = idx
+			c.pressTask(a, c.undated[idx], right, double)
 		}
+		return
+	}
+	for _, b := range lay.boxes {
+		if !b.rect.contains(x, y) {
+			continue
+		}
+		if c.sub != calMonth {
+			s := 0
+			if sameDay(b.day, v.day) {
+				s = c.columnScroll(b)
+			}
+			if idx, ok := c.columnEntryAt(b, s, y-b.rect.y); ok {
+				if !sameDay(b.day, v.day) {
+					v.selectDay(a, b.day)
+				}
+				c.focus = calFocusItems
+				c.cursor = idx
+				c.pressTask(a, c.dayEntries(b.day)[idx].task, right, double)
+				return
+			}
+		}
+		v.selectDay(a, b.day)
+		c.focus = calFocusGrid
+		if double {
+			v.calendarKey(a, vim.KeyEnter)
+		}
+		return
 	}
 	if lay.items.contains(x, y) && y > lay.items.y {
 		idx := lay.itemStart + y - lay.items.y - 1
@@ -702,13 +751,7 @@ func (c *taskCalendar) click(a *App, v *tasksView, x, y int, right, double bool)
 		if idx < len(entries) {
 			c.focus = calFocusItems
 			c.cursor = idx
-			t := entries[idx].task
-			switch {
-			case right:
-				a.taskMenu(t)
-			case double:
-				a.openTaskSource(t)
-			}
+			c.pressTask(a, entries[idx].task, right, double)
 		}
 	}
 }
@@ -716,8 +759,19 @@ func (c *taskCalendar) click(a *App, v *tasksView, x, y int, right, double bool)
 // selectionCell is the body cell menus open next to.
 func (c *taskCalendar) selectionCell(day time.Time) (int, int) {
 	lay := c.layout
-	if c.focus == calFocusItems {
-		return lay.items.x + 3, lay.items.y + 1 + c.cursor - lay.itemStart
+	switch c.focus {
+	case calFocusStrip:
+		return lay.strip.x + 2, lay.strip.y + 1 + c.strip - lay.stripStart
+	case calFocusItems:
+		if c.sub == calMonth {
+			return lay.items.x + 3, lay.items.y + 1 + c.cursor - lay.itemStart
+		}
+		for _, b := range lay.boxes {
+			if sameDay(b.day, day) {
+				s := c.columnScroll(b)
+				return b.rect.x + 2, b.rect.y + c.cursor - s + min(s, 1)
+			}
+		}
 	}
 	for _, b := range lay.boxes {
 		if sameDay(b.day, day) {
