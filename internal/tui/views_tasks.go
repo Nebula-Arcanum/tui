@@ -1089,9 +1089,13 @@ func (v *tasksView) calendarKey(a *App, k vim.Key) bool {
 	case k.Is("esc"):
 		v.calc().sub = (v.calc().sub + 1) % 3
 	case hourList && (k.IsRune('j') || k.Is("down")):
-		v.calc().scrollHours(1)
+		if !v.calc().scrollColumn(v.day, 1) {
+			v.calc().scrollHours(1)
+		}
 	case hourList && (k.IsRune('k') || k.Is("up")):
-		v.calc().scrollHours(-1)
+		if !v.calc().scrollColumn(v.day, -1) {
+			v.calc().scrollHours(-1)
+		}
 	case k.IsRune('h') || k.Is("left"):
 		v.selectDay(a, v.day.AddDate(0, 0, -1))
 	case k.IsRune('l') || k.Is("right"):
@@ -1150,6 +1154,7 @@ func (v *tasksView) selectDay(a *App, day time.Time) {
 		v.month = time.Date(v.day.Year(), v.day.Month(), 1, 0, 0, 0, 0, time.Local)
 	}
 	v.calc().cursor = 0
+	v.calc().colScroll = 0
 }
 
 func (v *tasksView) hintTargets(a *App, p *pane) []hintTarget {

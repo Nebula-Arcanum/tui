@@ -87,6 +87,9 @@ type taskCalendar struct {
 	// It is a time rather than a row index so it survives a change of
 	// variant.
 	scroll int
+	// colScroll is how many entries the selected day's column has scrolled
+	// off its top. It only applies while the hour list is shown whole.
+	colScroll int
 
 	byDay   map[string][]calEntry
 	undated []vault.Task
@@ -357,7 +360,11 @@ func (c *taskCalendar) renderColumns(a *App, day time.Time, lay calLayout, w, h 
 		var sb strings.Builder
 		sb.WriteString(th.Muted.Render(padRight(hourLabel(a, (lay.hourStart+i)*c.hourStep()), lay.gutter-2)) + th.Dim.Render(" │"))
 		for _, b := range lay.boxes {
-			sb.WriteString(c.columnLine(a, b, i, focused && sameDay(b.day, day)))
+			scroll := 0
+			if sameDay(b.day, day) {
+				scroll = c.columnScroll(b)
+			}
+			sb.WriteString(c.columnLine(a, b, i, focused && sameDay(b.day, day), scroll))
 		}
 		rows = append(rows, padRight(sb.String(), w))
 	}
@@ -368,30 +375,98 @@ func (c *taskCalendar) renderColumns(a *App, day time.Time, lay calLayout, w, h 
 	return fitBlock(strings.Join(rows, "\n"), w, h)
 }
 
-// columnLine is line li of one day column: entries from the top, with
-// "+N more" on the last line when they do not all fit.
-func (c *taskCalendar) columnLine(a *App, b calDayBox, li int, focusedDay bool) string {
+// maxColumnScroll is the furthest a day column can scroll: the last entry
+// then sits on the last line.
+func (c *taskCalendar) maxColumnScroll(b calDayBox) int {
+	n := len(c.dayEntries(b.day))
+	if n <= b.rect.h {
+		return 0
+	}
+	return n - (b.rect.h - 1)
+}
+
+// columnScroll is the scroll applied to box b, kept inside its range. A
+// column only scrolls while the hour list is shown whole.
+func (c *taskCalendar) columnScroll(b calDayBox) int {
+	items := c.focus == calFocusItems
+	if !c.hourListWhole() && !items {
+		return 0
+	}
+	s := clampInt(c.colScroll, 0, c.maxColumnScroll(b))
+	if items {
+		// Keep the selected entry on screen as the selection moves.
+		s = min(s, c.cursor)
+		for s < c.maxColumnScroll(b) && c.cursor >= s+c.columnShown(b, s) {
+			s++
+		}
+		c.colScroll = s
+	}
+	return s
+}
+
+// columnShown is how many entries box b lists when scrolled by s.
+func (c *taskCalendar) columnShown(b calDayBox, s int) int {
+	room := b.rect.h - min(s, 1)
+	if rest := len(c.dayEntries(b.day)) - s; rest <= room {
+		return rest
+	}
+	return room - 1
+}
+
+// scrollColumn scrolls the selected day's column by delta entries, never past
+// either end. It reports whether there is a column to scroll.
+func (c *taskCalendar) scrollColumn(day time.Time, delta int) bool {
+	if c.sub == calMonth || !c.hourListWhole() {
+		return false
+	}
+	for _, b := range c.layout.boxes {
+		if sameDay(b.day, day) {
+			c.colScroll = clampInt(c.columnScroll(b)+delta, 0, c.maxColumnScroll(b))
+			return true
+		}
+	}
+	return false
+}
+
+// columnLine is line li of one day column: entries from the scroll offset,
+// with "+N more" on the first line when some are scrolled off the top and on
+// the last line when they do not all fit.
+func (c *taskCalendar) columnLine(a *App, b calDayBox, li int, focusedDay bool, scroll int) string {
 	th := a.theme
 	w := b.rect.w
 	entries := c.dayEntries(b.day)
-	shown := len(entries)
-	if shown > b.rect.h {
-		shown = b.rect.h - 1
+	more := func(n int) string {
+		return th.Dim.Render(padRight(fmt.Sprintf(" +%d more", n), w))
+	}
+	first := 0
+	if scroll > 0 {
+		if li == 0 {
+			return more(scroll)
+		}
+		first = scroll
+		li--
+	}
+	rest := entries[first:]
+	room := b.rect.h - min(scroll, 1)
+	shown := len(rest)
+	if shown > room {
+		shown = room - 1
 	}
 	switch {
 	case li < shown:
-		e := entries[li]
+		idx := first + li
+		e := entries[idx]
 		lead := " "
 		if e.scheduled {
 			lead = calScheduledMark
 		}
 		text := padRight(lead+truncateCells(e.task.Content, w-2), w)
-		if focusedDay && c.focus == calFocusItems && li == c.cursor {
+		if focusedDay && c.focus == calFocusItems && idx == c.cursor {
 			return th.SelectedFocus.Render(text)
 		}
 		return text
-	case li == shown && shown < len(entries):
-		return th.Dim.Render(padRight(fmt.Sprintf(" +%d more", len(entries)-shown), w))
+	case li == shown && shown < len(rest):
+		return more(len(rest) - shown)
 	}
 	return strings.Repeat(" ", w)
 }
