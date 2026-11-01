@@ -109,6 +109,12 @@ func (c *taskCalendar) rebuild(tasks []vault.Task, day time.Time) {
 	if c.focus == calFocusItems && len(entries) == 0 {
 		c.focus = calFocusGrid
 	}
+	if c.strip >= len(c.undated) {
+		c.strip = max(0, len(c.undated)-1)
+	}
+	if c.focus == calFocusStrip && len(c.undated) == 0 {
+		c.focus = calFocusGrid
+	}
 }
 
 func (c *taskCalendar) dayEntries(day time.Time) []calEntry {
@@ -116,11 +122,14 @@ func (c *taskCalendar) dayEntries(day time.Time) []calEntry {
 }
 
 // focusOrder is the parts Tab visits, in order: the grid, then the selected
-// day's items when it has any.
+// day's items when it has any, then the strip of undated tasks when it has any.
 func (c *taskCalendar) focusOrder(day time.Time) []calFocus {
 	order := []calFocus{calFocusGrid}
 	if len(c.dayEntries(day)) > 0 {
 		order = append(order, calFocusItems)
+	}
+	if len(c.undated) > 0 {
+		order = append(order, calFocusStrip)
 	}
 	return order
 }
@@ -142,6 +151,8 @@ func (c *taskCalendar) cycleFocus(day time.Time) bool {
 	c.focus = next
 	if next == calFocusItems {
 		c.cursor = 0
+	} else if next == calFocusStrip {
+		c.strip = 0
 	}
 	return true
 }

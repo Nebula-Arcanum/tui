@@ -1057,12 +1057,20 @@ func (v *tasksView) calendarKey(a *App, k vim.Key) bool {
 		case k.Is("tab"):
 			v.calc().cycleFocus(v.day)
 		case k.IsRune('j') || k.Is("down"):
-			if v.calc().cursor < len(v.calc().dayEntries(v.day))-1 {
-				v.calc().cursor++
+			if c := v.calc(); c.focus == calFocusStrip {
+				if c.strip < len(c.undated)-1 {
+					c.strip++
+				}
+			} else if c.cursor < len(c.dayEntries(v.day))-1 {
+				c.cursor++
 			}
 		case k.IsRune('k') || k.Is("up"):
-			if v.calc().cursor > 0 {
-				v.calc().cursor--
+			if c := v.calc(); c.focus == calFocusStrip {
+				if c.strip > 0 {
+					c.strip--
+				}
+			} else if c.cursor > 0 {
+				c.cursor--
 			}
 		case k.Is("enter") || k.IsRune('o'):
 			if t != nil {
